@@ -1,41 +1,112 @@
-import { Badge, Button, Container, Navbar } from 'react-bootstrap';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell, Search, Menu, X, ChevronDown } from 'lucide-react';
 import Sidebar from './Sidebar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const roleBadgeVariant = { Admin: 'danger', Officer: 'primary', Vendor: 'success', Manager: 'warning' };
+function getInitials(name = '') {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+}
+
+const roleBadgeStyle = {
+  Admin:   { background: '#FEF2F2', color: '#991b1b' },
+  Officer: { background: '#EFF6FF', color: '#1d4ed8' },
+  Vendor:  { background: '#F0FDF4', color: '#16a34a' },
+  Manager: { background: '#FFFBEB', color: '#b45309' },
+};
 
 export default function Layout({ title, children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   async function handleLogout() {
     await logout();
     navigate('/login');
   }
 
+  const badgeStyle = roleBadgeStyle[user?.role] || { background: '#F3F4F6', color: '#374151' };
+
   return (
     <>
-      <Sidebar />
-      <main className="main-content">
-        <Navbar className="px-4">
-          <Container fluid className="px-0">
-            <Navbar.Brand className="fw-semibold">{title}</Navbar.Brand>
-            <div className="d-flex align-items-center gap-3">
-              {user && (
-                <Badge bg={roleBadgeVariant[user.role] || 'secondary'}>
-                  {user.role}
-                </Badge>
-              )}
-              <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
-                Logout
-              </Button>
+      <Sidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="vb-main">
+        {/* Topbar */}
+        <header className="vb-topbar">
+          <div className="vb-topbar-left">
+            {/* Mobile hamburger */}
+            <button
+              className="vb-topbar-btn"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{ display: 'none' }}
+              id="mobile-menu-btn"
+            >
+              {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+
+            <div className="vb-search-bar">
+              <Search size={15} color="var(--text-muted)" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
             </div>
-          </Container>
-        </Navbar>
-        <Container fluid className="p-4">
+          </div>
+
+          <div className="vb-topbar-right">
+            {/* Notification bell */}
+            <div className="vb-topbar-btn" style={{ position: 'relative' }}>
+              <Bell size={17} />
+              <span style={{
+                position: 'absolute', top: 6, right: 6,
+                width: 7, height: 7, borderRadius: '50%',
+                background: '#DC2626',
+                border: '1.5px solid #fff'
+              }} />
+            </div>
+
+            {/* Role badge */}
+            <span
+              style={{
+                ...badgeStyle,
+                padding: '3px 10px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {user?.role}
+            </span>
+
+            {/* Avatar + dropdown */}
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', padding: '4px 8px',
+                borderRadius: 8, border: '1px solid var(--border)',
+                background: 'var(--surface)',
+              }}
+              title={`${user?.name} — ${user?.role}`}
+            >
+              <div className="vb-user-avatar" style={{ width: 28, height: 28, fontSize: 11 }}>
+                {getInitials(user?.name)}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.name?.split(' ')[0] || 'User'}
+              </span>
+              <ChevronDown size={13} color="var(--text-muted)" />
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="vb-content">
           {children}
-        </Container>
+        </div>
       </main>
     </>
   );
