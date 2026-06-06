@@ -8,6 +8,8 @@ import Signup from './pages/Signup.jsx';
 import Vendors from './pages/Vendors.jsx';
 import VendorForm from './pages/VendorForm.jsx';
 import VendorDetail from './pages/VendorDetail.jsx';
+import RFQs from './pages/RFQs.jsx';
+import RFQForm from './pages/RFQForm.jsx';
 
 function ProtectedRoute({ title, children }) {
   const { user, loading } = useAuth();
@@ -42,6 +44,22 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/rfqs"
+          element={(
+            <ProtectedRoute title="RFQs">
+              <RFQs />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/rfqs/new"
+          element={(
+            <ProtectedRoute title="New RFQ">
+              <RFQForm />
+            </ProtectedRoute>
+          )}
+        />
         <Route
           path="/vendors"
           element={(
@@ -82,7 +100,7 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
-        {['rfqs', 'quotations', 'approvals', 'purchase-orders', 'invoices', 'reports', 'activity'].map((path) => (
+        {['quotations', 'approvals', 'purchase-orders', 'invoices', 'reports', 'activity'].map((path) => (
           <Route
             key={path}
             path={`/${path}`}
