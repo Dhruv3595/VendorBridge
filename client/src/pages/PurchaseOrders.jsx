@@ -74,17 +74,17 @@ export default function PurchaseOrders() {
               </thead>
               <tbody>
                 {filtered.map(po => (
-                  <tr key={po._id}>
+                  <tr key={po.id || po._id}>
                     <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{po.po_number}</td>
                     <td>{po.rfq_title}</td>
                     <td>{po.vendor_name}</td>
-                    <td style={{ fontWeight: 600 }}>{fmtRupee(po.grand_total || po.amount || 0)}</td>
+                    <td style={{ fontWeight: 600 }}>{fmtRupee(Number(po.grand_total) || Number(po.subtotal) || Number(po.amount) || 0)}</td>
                     <td><span className={`vb-badge ${statusStyle[po.status] || 'vb-badge-neutral'}`}>{po.status}</span></td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
                       {new Date(po.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                     <td>
-                      <Link to={`/purchase-orders/${po._id}`} className="vb-btn vb-btn-ghost vb-btn-xs">
+                      <Link to={`/purchase-orders/${po.id || po._id}`} className="vb-btn vb-btn-ghost vb-btn-xs">
                         <Eye size={13} />
                       </Link>
                     </td>

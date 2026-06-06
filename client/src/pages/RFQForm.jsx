@@ -1,22 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Check, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
-const categories = ['IT Hardware', 'Furniture', 'Stationery', 'Logistics', 'Services', 'Electronics', 'Raw Materials'];
+const categories = ['IT Hardware', 'Office Supplies', 'Furniture', 'Stationery', 'Construction', 'Logistics', 'Services', 'Electronics', 'Raw Materials'];
 const units = ['Nos', 'Kg', 'Litre', 'Box', 'Set', 'Pair', 'Metre', 'Piece'];
 
 const STEPS = [
   { label: 'RFQ Details', desc: 'Basic information' },
   { label: 'Line Items', desc: 'Items & quantities' },
   { label: 'Vendor Assignment', desc: 'Assign suppliers' },
-];
-
-const seedVendors = [
-  { _id: 'v1', name: 'TechCore Ltd' },
-  { _id: 'v2', name: 'Infra Supplies Co' },
-  { _id: 'v3', name: 'FastLog Services' },
-  { _id: 'v4', name: 'QuickPrint Co' },
-  { _id: 'v5', name: 'ServTech Solutions' },
 ];
 
 function Stepper({ currentStep }) {
@@ -52,10 +44,14 @@ function emptyItem() {
 
 export default function RFQForm() {
   const navigate = useNavigate();
+  const { rfqId } = useParams();   // present when editing
+  const isEdit = Boolean(rfqId);
+
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(isEdit);
   const [error, setError] = useState('');
-  const [vendors, setVendors] = useState(seedVendors);
+  const [vendors, setVendors] = useState([]);
   const [selectedVendors, setSelectedVendors] = useState([]);
 
   const [form, setForm] = useState({
@@ -63,12 +59,38 @@ export default function RFQForm() {
     items: [emptyItem()],
   });
 
+  // Load vendors list
   useEffect(() => {
     fetch('/api/vendors', { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (Array.isArray(data) && data.length) setVendors(data); })
       .catch(() => {});
   }, []);
+
+  // Load existing RFQ data when editing
+  useEffect(() => {
+    if (!isEdit) return;
+    fetch(`/api/rfqs/${rfqId}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.title) { setError('RFQ not found'); return; }
+        setForm({
+          title: data.title || '',
+          category: data.category || '',
+          deadline: data.deadline ? data.deadline.slice(0, 10) : '',
+          description: data.description || '',
+          items: Array.isArray(data.items) && data.items.length
+            ? data.items.map(i => ({ name: i.item_name || i.name || '', quantity: i.quantity || 1, unit: i.unit || 'Nos', description: '' }))
+            : [emptyItem()],
+        });
+        // Pre-select assigned vendors
+        if (Array.isArray(data.vendors)) {
+          setSelectedVendors(data.vendors.map(v => v.id || v._id));
+        }
+      })
+      .catch(() => setError('Failed to load RFQ'))
+      .finally(() => setLoadingData(false));
+  }, [rfqId, isEdit]);
 
   function updateField(key, val) {
     setForm(p => ({ ...p, [key]: val }));
@@ -100,13 +122,44 @@ export default function RFQForm() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/rfqs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ ...form, status, vendor_ids: selectedVendors }),
-      });
-      if (!res.ok) throw new Error('Failed to create RFQ');
+      const payload = {
+        ...form,
+        status,
+        items: form.items.map(i => ({ item_name: i.name, quantity: i.quantity, unit: i.unit })),
+        vendorIds: selectedVendors,
+      };
+
+      let rfqSaved;
+
+      if (isEdit) {
+        // Update RFQ details
+        const res = await fetch(`/api/rfqs/${rfqId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title: form.title, category: form.category, deadline: form.deadline, description: form.description, status }),
+        });
+        if (!res.ok) throw new Error('Failed to update RFQ');
+        rfqSaved = await res.json();
+
+        // Re-assign vendors
+        await fetch(`/api/rfqs/${rfqId}/assign-vendors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ vendorIds: selectedVendors }),
+        });
+      } else {
+        const res = await fetch('/api/rfqs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('Failed to create RFQ');
+        rfqSaved = await res.json();
+      }
+
       navigate('/rfqs');
     } catch (err) {
       setError(err.message);
@@ -115,12 +168,14 @@ export default function RFQForm() {
     }
   }
 
+  if (loadingData) return <div className="vb-spinner"><div className="vb-spin" /> Loading RFQ...</div>;
+
   return (
     <>
       <div className="vb-page-header">
         <div>
-          <div className="vb-page-title">Create New RFQ</div>
-          <div className="vb-page-subtitle">Fill in details and assign vendors for quotation</div>
+          <div className="vb-page-title">{isEdit ? 'Edit RFQ' : 'Create New RFQ'}</div>
+          <div className="vb-page-subtitle">{isEdit ? 'Update RFQ details and vendor assignments' : 'Fill in details and assign vendors for quotation'}</div>
         </div>
       </div>
 
@@ -152,7 +207,7 @@ export default function RFQForm() {
               <input className="vb-input" type="date" value={form.deadline}
                 onChange={e => updateField('deadline', e.target.value)} />
             </div>
-            <div /> {/* spacer */}
+            <div />
           </div>
           <div className="vb-form-group">
             <label className="vb-form-label">Description</label>
@@ -180,7 +235,7 @@ export default function RFQForm() {
                   <th style={{ width: '40%' }}>Item Name</th>
                   <th>Quantity</th>
                   <th>Unit</th>
-                  <th>Description</th>
+                  <th>Notes</th>
                   <th></th>
                 </tr>
               </thead>
@@ -240,16 +295,16 @@ export default function RFQForm() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: 24 }}>
             {vendors.map(v => {
-              const sel = selectedVendors.includes(v._id);
+              const vid = v.id || v._id;
+              const sel = selectedVendors.includes(vid);
               return (
                 <div
-                  key={v._id}
-                  onClick={() => toggleVendor(v._id)}
+                  key={vid}
+                  onClick={() => toggleVendor(vid)}
                   style={{
                     padding: '12px 16px',
                     border: `1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'}`,
-                    borderRadius: 8,
-                    cursor: 'pointer',
+                    borderRadius: 8, cursor: 'pointer',
                     background: sel ? 'var(--primary-light)' : 'var(--surface)',
                     display: 'flex', alignItems: 'center', gap: 10,
                     transition: 'all 0.15s'
@@ -271,6 +326,9 @@ export default function RFQForm() {
                 </div>
               );
             })}
+            {vendors.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, gridColumn: '1/-1' }}>No vendors available.</div>
+            )}
           </div>
           <div style={{ background: 'var(--bg)', padding: 12, borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
             {selectedVendors.length} vendor{selectedVendors.length !== 1 ? 's' : ''} selected
@@ -278,11 +336,13 @@ export default function RFQForm() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <button className="vb-btn vb-btn-outline" onClick={() => setStep(1)}>← Back</button>
             <button className="vb-btn vb-btn-outline" onClick={() => handleSave('Draft')} disabled={loading}>
-              Save as Draft
+              {isEdit ? 'Save Changes' : 'Save as Draft'}
             </button>
             <button className="vb-btn vb-btn-primary" onClick={() => handleSave('Published')}
               disabled={loading || selectedVendors.length === 0}>
-              {loading ? <><span className="vb-spin" style={{ width: 15, height: 15 }} /> Publishing...</> : '🚀 Publish & Send'}
+              {loading
+                ? <><span className="vb-spin" style={{ width: 15, height: 15 }} /> Saving...</>
+                : isEdit ? '💾 Update & Publish' : '🚀 Publish & Send'}
             </button>
           </div>
         </div>

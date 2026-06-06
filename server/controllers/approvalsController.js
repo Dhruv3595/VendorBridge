@@ -27,15 +27,26 @@ async function getApprovals(req, res) {
               u.name AS approver_name,
               q.status AS quotation_status,
               q.tax_percent,
+              q.submitted_at,
               v.name AS vendor_name,
               r.title AS rfq_title,
-              r.id AS rfq_id
+              r.id AS rfq_id,
+              CONCAT('RFQ-', TO_CHAR(r.created_at, 'YYYY'), '-', LPAD(r.id::TEXT, 3, '0')) AS rfq_number,
+              sub.officer_name AS submitted_by,
+              COALESCE(SUM(qi.quantity * qi.unit_price), 0) AS subtotal,
+              COALESCE(SUM(qi.quantity * qi.unit_price), 0) * (1 + q.tax_percent / 100) AS grand_total
        FROM approvals a
        LEFT JOIN users u ON a.approver_id = u.id
        JOIN quotations q ON a.quotation_id = q.id
        JOIN vendors v ON q.vendor_id = v.id
        JOIN rfqs r ON q.rfq_id = r.id
+       LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
+       LEFT JOIN (
+         SELECT id, name AS officer_name FROM users WHERE role IN ('Officer','Admin')
+       ) sub ON sub.id = r.created_by
        ${scope}
+       GROUP BY a.id, u.name, q.status, q.tax_percent, q.submitted_at,
+                v.name, r.title, r.id, r.created_at, r.created_by, sub.officer_name
        ORDER BY a.id DESC`,
       values
     );
@@ -123,8 +134,10 @@ async function approveApproval(req, res) {
 
     const result = await client.query(
       `UPDATE approvals
-       SET status = 'Approved', remarks = $1, acted_at = NOW()
-       WHERE id = $2 AND status = 'Pending' AND approver_id = $3
+       SET status = 'Approved', remarks = $1, acted_at = NOW(),
+           approver_id = COALESCE(approver_id, $3)
+       WHERE id = $2 AND status = 'Pending'
+         AND (approver_id = $3 OR approver_id IS NULL)
        RETURNING *`,
       [remarks, req.params.id, req.user.id]
     );
@@ -198,8 +211,10 @@ async function rejectApproval(req, res) {
 
     const result = await client.query(
       `UPDATE approvals
-       SET status = 'Rejected', remarks = $1, acted_at = NOW()
-       WHERE id = $2 AND status = 'Pending' AND approver_id = $3
+       SET status = 'Rejected', remarks = $1, acted_at = NOW(),
+           approver_id = COALESCE(approver_id, $3)
+       WHERE id = $2 AND status = 'Pending'
+         AND (approver_id = $3 OR approver_id IS NULL)
        RETURNING *`,
       [remarks, req.params.id, req.user.id]
     );

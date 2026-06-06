@@ -22,6 +22,7 @@ async function getQuotations(req, res) {
       `SELECT q.*,
               v.name AS vendor_name,
               r.title AS rfq_title,
+              CONCAT('RFQ-', TO_CHAR(r.created_at, 'YYYY'), '-', LPAD(r.id::TEXT, 3, '0')) AS rfq_number,
               COALESCE(SUM(qi.quantity * qi.unit_price), 0) AS subtotal,
               COALESCE(SUM(qi.quantity * qi.unit_price), 0) * (1 + q.tax_percent / 100) AS grand_total,
               MAX(qi.delivery_days) AS max_delivery_days
@@ -30,7 +31,7 @@ async function getQuotations(req, res) {
        JOIN rfqs r ON q.rfq_id = r.id
        LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-       GROUP BY q.id, v.name, r.title
+       GROUP BY q.id, v.name, r.title, r.id, r.created_at
        ORDER BY q.submitted_at DESC`,
       values
     );

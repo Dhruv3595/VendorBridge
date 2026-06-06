@@ -115,6 +115,14 @@ export default function App() {
           )}
         />
         <Route
+          path="/rfqs/:rfqId/edit"
+          element={(
+            <ProtectedRoute title="Edit RFQ" roles={['Officer']}>
+              <RFQForm />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/rfqs/:rfqId/quotations/compare"
           element={(
             <ProtectedRoute title="Compare Quotations">

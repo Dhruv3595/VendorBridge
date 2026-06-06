@@ -65,7 +65,22 @@ export default function Activity() {
   }, []);
 
   const display = logs.length ? logs : seedLogs;
-  const filtered = display.filter(l => {
+
+  // Derive module from action string for real API logs
+  function getModule(log) {
+    if (log.module) return log.module;
+    const a = (log.action || '').toLowerCase();
+    if (a.includes('rfq') || a.includes('quotation')) return 'RFQ';
+    if (a.includes('approval')) return 'Approval';
+    if (a.includes('invoice')) return 'Invoice';
+    if (a.includes('vendor')) return 'Vendor';
+    if (a.includes('po') || a.includes('purchase')) return 'PO';
+    return 'Other';
+  }
+
+  const displayWithModule = display.map(l => ({ ...l, module: getModule(l), user: l.user_name || l.user || '—' }));
+
+  const filtered = displayWithModule.filter(l => {
     const matchModule = activeModule === 'All' || l.module === activeModule;
     const q = search.toLowerCase();
     const matchSearch = !q || l.action?.toLowerCase().includes(q) || l.description?.toLowerCase().includes(q) || l.user?.toLowerCase().includes(q);
@@ -94,7 +109,7 @@ export default function Activity() {
               <button key={tab} className={`vb-filter-tab${activeModule === tab ? ' active' : ''}`} onClick={() => setActiveModule(tab)}>
                 {tab}
                 <span style={{ marginLeft: 4, padding: '0 5px', background: activeModule === tab ? 'var(--primary-light)' : 'transparent', borderRadius: 10, fontSize: 11, color: activeModule === tab ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 600 }}>
-                  {tab === 'All' ? display.length : display.filter(l => l.module === tab).length}
+                  {tab === 'All' ? displayWithModule.length : displayWithModule.filter(l => l.module === tab).length}
                 </span>
               </button>
             ))}
@@ -118,7 +133,7 @@ export default function Activity() {
               const Icon = moduleIcons[log.module] || ActivityIcon;
               const style = moduleColors[log.module] || { color: 'var(--text-muted)', bg: 'var(--bg)' };
               return (
-                <div key={log._id} className="vb-timeline-item">
+                <div key={log.id || log._id || i} className="vb-timeline-item">
                   <div className="vb-timeline-dot info" style={{ background: style.color }} />
                   <div className="vb-timeline-line" />
                   <div className="vb-timeline-content">
@@ -135,7 +150,7 @@ export default function Activity() {
                               {log.module}
                             </span>
                             <span>👤 {log.user}</span>
-                            <span style={{ fontSize: 11 }}>{log.role}</span>
+                            {log.user_role && <span style={{ fontSize: 11 }}>{log.user_role}</span>}
                           </div>
                         </div>
                       </div>

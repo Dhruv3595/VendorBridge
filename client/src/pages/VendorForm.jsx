@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, Building2, UserCircle, Phone, Mail, FileText, ChevronLeft, MapPin } from 'lucide-react';
 
-const categories = ['IT Hardware', 'Furniture', 'Stationery', 'Logistics', 'Services', 'Electronics', 'Raw Materials'];
+const categories = ['IT Hardware', 'Office Supplies', 'Furniture', 'Stationery', 'Construction', 'Logistics', 'Services', 'Electronics', 'Raw Materials'];
 
 export default function VendorForm() {
   const { id } = useParams();

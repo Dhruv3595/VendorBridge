@@ -128,7 +128,7 @@ export default function Vendors() {
               </thead>
               <tbody>
                 {filtered.map(v => (
-                  <tr key={v._id}>
+                  <tr key={v.id || v._id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div className="vb-avatar" style={{ width: 32, height: 32, fontSize: 11, background: 'var(--primary-light)', color: 'var(--primary)' }}>
@@ -163,10 +163,10 @@ export default function Vendors() {
                     {canManage && (
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <Link to={`/vendors/${v._id}`} className="vb-btn vb-btn-ghost vb-btn-xs" title="View">
+                          <Link to={`/vendors/${v.id || v._id}`} className="vb-btn vb-btn-ghost vb-btn-xs" title="View">
                             <Eye size={13} />
                           </Link>
-                          <Link to={`/vendors/${v._id}/edit`} className="vb-btn vb-btn-ghost vb-btn-xs" title="Edit">
+                          <Link to={`/vendors/${v.id || v._id}/edit`} className="vb-btn vb-btn-ghost vb-btn-xs" title="Edit">
                             <Edit2 size={13} />
                           </Link>
                         </div>

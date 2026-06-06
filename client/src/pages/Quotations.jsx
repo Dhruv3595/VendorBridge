@@ -102,7 +102,7 @@ export default function Quotations() {
               </thead>
               <tbody>
                 {filtered.map(q => (
-                  <tr key={q._id}>
+                  <tr key={q.id || q._id}>
                     <td style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 13 }}>{q.rfq_number}</td>
                     <td style={{ maxWidth: 200 }}>
                       <div style={{ fontWeight: 500 }}>{q.rfq_title}</div>
@@ -115,21 +115,24 @@ export default function Quotations() {
                         {q.vendor_name}
                       </div>
                     </td>
-                    <td style={{ fontWeight: 600 }}>{fmtRupee(q.grand_total || q.total_amount || 0)}</td>
-                    <td>{q.gst_percent}%</td>
+                    <td style={{ fontWeight: 600 }}>{fmtRupee(Number(q.grand_total) || Number(q.total_amount) || 0)}</td>
+                    <td>{q.tax_percent ?? q.gst_percent ?? '—'}%</td>
                     <td>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-                        🚚 {q.delivery_days} days
+                        🚚 {q.max_delivery_days ?? q.delivery_days ?? '—'} days
                       </span>
                     </td>
                     <td>
                       <span className={`vb-badge ${statusStyle[q.status] || 'vb-badge-neutral'}`}>{q.status}</span>
                     </td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                      {new Date(q.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {(() => {
+                        const d = new Date(q.submitted_at);
+                        return isNaN(d) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                      })()}
                     </td>
                     <td>
-                      <Link to={`/rfqs/${q.rfq_id || 'r1'}/quotations/compare`} className="vb-btn vb-btn-ghost vb-btn-xs">
+                      <Link to={`/rfqs/${q.rfq_id}/quotations/compare`} className="vb-btn vb-btn-ghost vb-btn-xs">
                         <Eye size={13} />
                       </Link>
                     </td>

@@ -28,11 +28,16 @@ async function getRfqs(req, res) {
   try {
     const result = await pool.query(
       `SELECT r.*,
-              COUNT(rv.vendor_id)::int AS assigned_vendor_count
+              CONCAT('RFQ-', TO_CHAR(r.created_at, 'YYYY'), '-', LPAD(r.id::TEXT, 3, '0')) AS rfq_number,
+              COUNT(DISTINCT rv.vendor_id)::int AS vendors_count,
+              COUNT(DISTINCT q.id)::int AS quotations_count,
+              u.name AS created_by
        FROM rfqs r
        LEFT JOIN rfq_vendors rv ON r.id = rv.rfq_id
+       LEFT JOIN quotations q ON q.rfq_id = r.id
+       LEFT JOIN users u ON r.created_by = u.id
        ${where}
-       GROUP BY r.id
+       GROUP BY r.id, u.name
        ORDER BY r.created_at DESC`,
       values
     );

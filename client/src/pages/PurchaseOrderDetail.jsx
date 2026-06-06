@@ -39,14 +39,68 @@ export default function PurchaseOrderDetail() {
   useEffect(() => {
     fetch(`/api/purchase-orders/${id}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(data => setPO(data?.po_number ? data : seed))
+      .then(data => {
+        if (!data?.po_number) { setPO(seed); return; }
+        // Normalize API response to display format
+        const items = (data.items || []).map(item => ({
+          name: item.item_name,
+          qty: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          tax: Number(data.tax_percent || 0),
+          total: Number(item.line_total || item.quantity * item.unit_price),
+        }));
+        setPO({
+          ...data,
+          po_date: data.created_at,
+          buyer: data.bill_to || seed.buyer,
+          vendor: {
+            name: data.vendor_name || data.vendor?.name,
+            address: data.vendor_address || data.vendor?.address,
+            gst: data.vendor_gstin || data.vendor?.gstin,
+            email: data.vendor_email || data.vendor?.email,
+            phone: data.vendor_phone || data.vendor?.phone,
+          },
+          items,
+          subtotal: Number(data.subtotal),
+          cgst: Number(data.tax_amount) / 2,
+          sgst: Number(data.tax_amount) / 2,
+          grand_total: Number(data.grand_total),
+          invoice_number: data.invoice_number || '—',
+          invoice_date: data.invoice_date || data.created_at,
+          due_date: data.due_date || data.created_at,
+          invoice_status: data.invoice_status || '—',
+        });
+      })
       .catch(() => setPO(seed))
       .finally(() => setLoading(false));
   }, [id]);
 
+  async function downloadPdf() {
+    try {
+      const res = await fetch(`/api/purchase-orders/${id}/pdf`, { credentials: 'include' });
+      if (!res.ok) throw new Error('PDF failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${po.po_number}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert('Could not generate PDF'); }
+  }
+
+  async function emailPo() {
+    try {
+      const res = await fetch(`/api/purchase-orders/${id}/email`, { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data.preview_url) window.open(data.preview_url, '_blank');
+      else alert(data.message || 'Email sent');
+    } catch (e) { alert('Could not send email'); }
+  }
+
   async function markAsPaid() {
+    if (!po.invoice_id && !po.id) return;
     setMarking(true);
-    await fetch(`/api/invoices/${po._id}/pay`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    const invId = po.invoice_id || po.id;
+    await fetch(`/api/invoices/${invId}/mark-paid`, { method: 'PATCH', credentials: 'include' }).catch(() => {});
     setPO(p => ({ ...p, invoice_status: 'Paid' }));
     setMarking(false);
   }
@@ -68,11 +122,11 @@ export default function PurchaseOrderDetail() {
           <button className="vb-btn vb-btn-outline" onClick={() => window.print()}>
             <Printer size={15} /> Print
           </button>
-          <button className="vb-btn vb-btn-outline">
+          <button className="vb-btn vb-btn-outline" onClick={downloadPdf}>
             <Download size={15} /> Download PDF
           </button>
-          <button className="vb-btn vb-btn-outline">
-            <Mail size={15} /> Email Invoice
+          <button className="vb-btn vb-btn-outline" onClick={emailPo}>
+            <Mail size={15} /> Email PO
           </button>
           {po.invoice_status !== 'Paid' && (
             <button className="vb-btn vb-btn-success" onClick={markAsPaid} disabled={marking}>

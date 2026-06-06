@@ -107,14 +107,15 @@ async function getPurchaseOrders(req, res) {
               r.title AS rfq_title,
               v.id AS vendor_id,
               v.name AS vendor_name,
-              COALESCE(SUM(qi.quantity * qi.unit_price), 0) AS subtotal
+              COALESCE(SUM(qi.quantity * qi.unit_price), 0) AS subtotal,
+              COALESCE(SUM(qi.quantity * qi.unit_price), 0) * (1 + COALESCE(q.tax_percent, 0) / 100.0) AS grand_total
        FROM purchase_orders po
        LEFT JOIN rfqs r ON po.rfq_id = r.id
        LEFT JOIN quotations q ON po.quotation_id = q.id
        LEFT JOIN vendors v ON q.vendor_id = v.id
        LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
        ${scope}
-       GROUP BY po.id, r.title, v.id, v.name
+       GROUP BY po.id, r.title, v.id, v.name, q.tax_percent
        ORDER BY po.created_at DESC`,
       values
     );

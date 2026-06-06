@@ -69,22 +69,27 @@ export default function ApprovalDetail() {
   useEffect(() => {
     fetch(`/api/approvals/${id}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(data => setApproval(data?.rfq_number ? data : seedApproval))
+      .then(data => setApproval(data?.rfq_title ? data : seedApproval))
       .catch(() => setApproval(seedApproval))
       .finally(() => setLoading(false));
   }, [id]);
 
   async function handleAction(action) {
+    if (!remarks.trim()) {
+      setError('Please add remarks before submitting your decision.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
       const res = await fetch(`/api/approvals/${id}/${action}`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ remarks }),
       });
-      if (!res.ok) throw new Error('Action failed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Action failed');
       navigate('/approvals');
     } catch (err) {
       setError(err.message);
@@ -96,7 +101,10 @@ export default function ApprovalDetail() {
   if (!approval) return null;
 
   const currentStep = approval.status === 'Approved' ? 3 : approval.status === 'Rejected' ? 1 : 1;
-  const canAct = user?.role === 'Manager' && approval.status === 'Pending';
+  // Manager can act if: their role is Manager AND approval is Pending AND they are the assigned approver
+  // Also allow if approver_id is null (unassigned) — any manager can act
+  const canAct = user?.role === 'Manager' && approval.status === 'Pending' &&
+    (approval.approver_id === user?.id || approval.approver_id === null);
   const canAdmin = user?.role === 'Admin';
 
   return (
@@ -104,7 +112,9 @@ export default function ApprovalDetail() {
       <div className="vb-page-header">
         <div>
           <div className="vb-page-title">Approval Workflow</div>
-          <div className="vb-page-subtitle">{approval.rfq_number} · {approval.rfq_title}</div>
+          <div className="vb-page-subtitle">
+            {approval.rfq_number || (approval.rfq_id ? `RFQ-${new Date(approval.created_at).getFullYear()}-${String(approval.rfq_id).padStart(3,'0')}` : '')} · {approval.rfq_title}
+          </div>
         </div>
         <span className={`vb-badge ${approval.status === 'Approved' ? 'vb-badge-success' : approval.status === 'Rejected' ? 'vb-badge-danger' : 'vb-badge-warning'}`} style={{ fontSize: 13 }}>
           {approval.status === 'Pending' ? '⏳ Pending Review' : approval.status}
@@ -148,14 +158,12 @@ export default function ApprovalDetail() {
           <div className="vb-section-title">Quotation Summary</div>
           {[
             { label: 'Selected Vendor', value: approval.vendor_name },
-            { label: 'Grand Total', value: fmtRupee(approval.grand_total || approval.total_amount), bold: true, color: 'var(--primary)' },
-            { label: 'Subtotal', value: fmtRupee(approval.total_amount) },
-            { label: 'GST', value: `${approval.gst_percent}%` },
-            { label: 'Delivery', value: `${approval.delivery_days} days` },
-            { label: 'Payment Terms', value: approval.payment_terms },
-            { label: 'Vendor Rating', value: `⭐ ${approval.vendor_rating}/5.0` },
-            { label: 'Submitted By', value: approval.submitted_by },
-            { label: 'Submitted On', value: new Date(approval.submitted_at).toLocaleDateString('en-IN') },
+            { label: 'Grand Total', value: fmtRupee(Number(approval.grand_total) || Number(approval.total_amount) || 0), bold: true, color: 'var(--primary)' },
+            { label: 'Subtotal', value: fmtRupee(Number(approval.subtotal) || Number(approval.total_amount) || 0) },
+            { label: 'GST', value: `${approval.tax_percent ?? approval.gst_percent ?? 0}%` },
+            { label: 'Delivery', value: `${approval.max_delivery_days ?? approval.delivery_days ?? '—'} days` },
+            { label: 'Submitted By', value: approval.submitted_by || approval.approver_name || '—' },
+            { label: 'Submitted On', value: (() => { const d = new Date(approval.submitted_at || approval.created_at); return isNaN(d) ? '—' : d.toLocaleDateString('en-IN'); })() },
           ].map(row => (
             <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-light)' }}>
               <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{row.label}</span>

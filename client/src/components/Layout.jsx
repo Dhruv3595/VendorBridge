@@ -59,7 +59,7 @@ export default function Layout({ title, children }) {
 
           <div className="vb-topbar-right">
             {/* Notification bell */}
-            <div className="vb-topbar-btn" style={{ position: 'relative' }}>
+            <button className="vb-topbar-btn" style={{ position: 'relative' }} title="Notifications">
               <Bell size={17} />
               <span style={{
                 position: 'absolute', top: 6, right: 6,
@@ -67,7 +67,7 @@ export default function Layout({ title, children }) {
                 background: '#DC2626',
                 border: '1.5px solid #fff'
               }} />
-            </div>
+            </button>
 
             {/* Role badge */}
             <span
@@ -83,23 +83,34 @@ export default function Layout({ title, children }) {
             </span>
 
             {/* Avatar + dropdown */}
-            <div
+            <button
+              onClick={handleLogout}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 cursor: 'pointer', padding: '4px 8px',
                 borderRadius: 8, border: '1px solid var(--border)',
                 background: 'var(--surface)',
+                fontSize: 13, fontWeight: 500, color: 'var(--text-main)',
+                transition: 'all var(--transition)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--bg)';
+                e.currentTarget.style.borderColor = '#d1d5db';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'var(--surface)';
+                e.currentTarget.style.borderColor = 'var(--border)';
               }}
               title={`${user?.name} — ${user?.role}`}
             >
               <div className="vb-user-avatar" style={{ width: 28, height: 28, fontSize: 11 }}>
                 {getInitials(user?.name)}
               </div>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.name?.split(' ')[0] || 'User'}
               </span>
               <ChevronDown size={13} color="var(--text-muted)" />
-            </div>
+            </button>
           </div>
         </header>
 

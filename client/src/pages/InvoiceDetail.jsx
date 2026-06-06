@@ -52,6 +52,22 @@ export default function InvoiceDetail() {
     setActing(false);
   }
 
+  async function savePdf() {
+    try {
+      const res = await fetch(`/api/invoices/${id}/pdf`, { credentials: 'include' });
+      if (!res.ok) throw new Error('PDF generation failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${invoice.invoice_number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Could not generate PDF: ' + err.message);
+    }
+  }
+
   if (loading) return <div className="vb-spinner"><div className="vb-spin" /> Loading...</div>;
   if (!invoice) return null;
 
@@ -71,7 +87,7 @@ export default function InvoiceDetail() {
           <button className="vb-btn vb-btn-outline" onClick={() => window.print()}>
             <Printer size={15} /> Print
           </button>
-          <button className="vb-btn vb-btn-outline">
+          <button className="vb-btn vb-btn-outline" onClick={savePdf}>
             <Download size={15} /> Save PDF
           </button>
           

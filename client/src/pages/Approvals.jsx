@@ -89,18 +89,23 @@ export default function Approvals() {
               </thead>
               <tbody>
                 {filtered.map(a => (
-                  <tr key={a._id}>
-                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{a.rfq_number}</td>
+                  <tr key={a.id || a._id}>
+                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                      {a.rfq_number || `RFQ-${new Date(a.created_at).getFullYear()}-${String(a.rfq_id).padStart(3,'0')}`}
+                    </td>
                     <td style={{ fontWeight: 500 }}>{a.rfq_title}</td>
                     <td>{a.vendor_name}</td>
-                    <td style={{ fontWeight: 600 }}>{fmtRupee(a.grand_total || a.amount || 0)}</td>
+                    <td style={{ fontWeight: 600 }}>{fmtRupee(Number(a.grand_total) || Number(a.subtotal) || Number(a.amount) || 0)}</td>
                     <td><span className={`vb-badge ${statusStyle[a.status] || 'vb-badge-neutral'}`}>{a.status}</span></td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{a.submitted_by}</td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{a.submitted_by || a.approver_name || '—'}</td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                      {new Date(a.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {(() => {
+                        const d = new Date(a.acted_at || a.quotation_submitted_at || a.created_at);
+                        return isNaN(d) ? '—' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                      })()}
                     </td>
                     <td>
-                      <Link to={`/approvals/${a._id}`} className="vb-btn vb-btn-outline vb-btn-xs" style={{ gap: 4 }}>
+                      <Link to={`/approvals/${a.id || a._id}`} className="vb-btn vb-btn-outline vb-btn-xs" style={{ gap: 4 }}>
                         <Eye size={12} /> {user?.role === 'Manager' && a.status === 'Pending' ? 'Review' : 'View'}
                       </Link>
                     </td>

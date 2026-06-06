@@ -51,7 +51,6 @@ export default function RFQs() {
     const matchSearch = !q || r.rfq_number?.toLowerCase().includes(q) || r.title?.toLowerCase().includes(q) || r.category?.toLowerCase().includes(q);
     return matchFilter && matchSearch;
   });
-
   return (
     <>
       <div className="vb-page-header">
@@ -118,9 +117,11 @@ export default function RFQs() {
               </thead>
               <tbody>
                 {filtered.map(r => (
-                  <tr key={r._id}>
+                  <tr key={r.id || r._id}>
                     <td>
-                      <span style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 13 }}>{r.rfq_number}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 13 }}>
+                        {r.rfq_number || `RFQ-${new Date(r.created_at).getFullYear()}-${String(r.id).padStart(3,'0')}`}
+                      </span>
                     </td>
                     <td>
                       <div style={{ fontWeight: 500, maxWidth: 220 }}>{r.title}</div>
@@ -133,11 +134,11 @@ export default function RFQs() {
                       </span>
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600 }}>{r.vendors_count || 0}</span>
+                      <span style={{ fontWeight: 600 }}>{r.vendors_count ?? r.assigned_vendor_count ?? 0}</span>
                       <span style={{ color: 'var(--text-muted)', fontSize: 12 }}> assigned</span>
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600 }}>{r.quotations_count || 0}</span>
+                      <span style={{ fontWeight: 600 }}>{r.quotations_count ?? 0}</span>
                       <span style={{ color: 'var(--text-muted)', fontSize: 12 }}> received</span>
                     </td>
                     <td>
@@ -146,21 +147,21 @@ export default function RFQs() {
                     <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{r.created_by || '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <Link to={`/rfqs/${r._id}/quotations/compare`} className="vb-btn vb-btn-ghost vb-btn-xs" title="View">
+                        <Link to={`/rfqs/${r.id || r._id}/quotations/compare`} className="vb-btn vb-btn-ghost vb-btn-xs" title="View">
                           <Eye size={13} />
                         </Link>
                         {canCreate && r.status === 'Draft' && (
-                          <Link to={`/rfqs/${r._id}/edit`} className="vb-btn vb-btn-ghost vb-btn-xs" title="Edit">
+                          <Link to={`/rfqs/${r.id || r._id}/edit`} className="vb-btn vb-btn-ghost vb-btn-xs" title="Edit">
                             <Edit2 size={13} />
                           </Link>
                         )}
                         {(r.quotations_count > 0) && ['Quotation Received', 'Approval Pending', 'Approved'].includes(r.status) && (
-                          <Link to={`/rfqs/${r._id}/quotations/compare`} className="vb-btn vb-btn-outline vb-btn-xs" title="Compare">
+                          <Link to={`/rfqs/${r.id || r._id}/quotations/compare`} className="vb-btn vb-btn-outline vb-btn-xs" title="Compare">
                             <GitCompare size={13} />
                           </Link>
                         )}
                         {user?.role === 'Vendor' && ['Published', 'Quotation Received'].includes(r.status) && (
-                          <Link to={`/rfqs/${r._id}/quotations/submit`} className="vb-btn vb-btn-outline vb-btn-xs">
+                          <Link to={`/rfqs/${r.id || r._id}/quotations/submit`} className="vb-btn vb-btn-outline vb-btn-xs">
                             <Send size={12} /> Submit
                           </Link>
                         )}

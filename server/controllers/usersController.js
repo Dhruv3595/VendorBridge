@@ -96,8 +96,56 @@ async function updateUserStatus(req, res) {
   }
 }
 
+async function updateUser(req, res) {
+  const { name, email, role, phone, country, vendor_id, status, password } = req.body;
+
+  if (!name || !email || !role) {
+    return res.status(400).json({ message: 'Name, email and role are required' });
+  }
+
+  try {
+    let query, params;
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      query = `UPDATE users
+               SET name = $1, email = $2, role = $3, phone = $4, country = $5,
+                   vendor_id = $6, status = $7, password_hash = $8
+               WHERE id = $9
+               RETURNING id, name, email, role, organization_id, vendor_id, phone, country, status, created_at`;
+      params = [name, email, role, phone || null, country || null,
+        role === 'Vendor' ? vendor_id || null : null,
+        status || 'Active', passwordHash, req.params.id];
+    } else {
+      query = `UPDATE users
+               SET name = $1, email = $2, role = $3, phone = $4, country = $5,
+                   vendor_id = $6, status = $7
+               WHERE id = $8
+               RETURNING id, name, email, role, organization_id, vendor_id, phone, country, status, created_at`;
+      params = [name, email, role, phone || null, country || null,
+        role === 'Vendor' ? vendor_id || null : null,
+        status || 'Active', req.params.id];
+    }
+
+    const result = await pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await addLog('User updated', `${result.rows[0].name} was updated.`, req.user.id);
+    res.json(cleanUser(result.rows[0]));
+  } catch (error) {
+    console.error(error);
+    if (error.code === '23505') {
+      return res.status(409).json({ message: 'Email already exists' });
+    }
+    res.status(500).json({ message: 'Could not update user' });
+  }
+}
+
 module.exports = {
   getUsers,
   createUser,
+  updateUser,
   updateUserStatus
 };

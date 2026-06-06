@@ -287,11 +287,24 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-secondary);
   transition: background var(--transition), color var(--transition);
   position: relative;
+  font-family: inherit;
+  padding: 0;
+  outline: none;
 }
 
 .vb-topbar-btn:hover {
   background: var(--bg);
   color: var(--text-main);
+  border-color: #d1d5db;
+}
+
+.vb-topbar-btn:focus {
+  box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.1);
+  border-color: var(--primary);
+}
+
+.vb-topbar-btn:active {
+  background: #efefef;
 }
 
 .vb-search-bar {
