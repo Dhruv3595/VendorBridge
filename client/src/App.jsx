@@ -16,6 +16,8 @@ import Approvals from './pages/Approvals.jsx';
 import ApprovalDetail from './pages/ApprovalDetail.jsx';
 import PurchaseOrders from './pages/PurchaseOrders.jsx';
 import PurchaseOrderDetail from './pages/PurchaseOrderDetail.jsx';
+import Invoices from './pages/Invoices.jsx';
+import InvoiceDetail from './pages/InvoiceDetail.jsx';
 
 function ProtectedRoute({ title, children }) {
   const { user, loading } = useAuth();
@@ -147,6 +149,22 @@ export default function App() {
           )}
         />
         <Route
+          path="/invoices"
+          element={(
+            <ProtectedRoute title="Invoices">
+              <Invoices />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/invoices/:id"
+          element={(
+            <ProtectedRoute title="Invoice Detail">
+              <InvoiceDetail />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/dashboard"
           element={(
             <ProtectedRoute title="Dashboard">
@@ -154,7 +172,7 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
-        {['quotations', 'invoices', 'reports', 'activity'].map((path) => (
+        {['quotations', 'reports', 'activity'].map((path) => (
           <Route
             key={path}
             path={`/${path}`}
