@@ -103,7 +103,7 @@ async function createRfq(req, res) {
       `INSERT INTO rfqs (title, category, deadline, description, status, created_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [title, category, deadline || null, description, status || 'Draft', req.session?.user?.id || null]
+      [title, category, deadline || null, description, status || 'Draft', req.user.id || null]
     );
     const rfq = rfqResult.rows[0];
 
@@ -125,7 +125,7 @@ async function createRfq(req, res) {
 
     await client.query(
       'INSERT INTO activity_logs (action, description, user_id) VALUES ($1, $2, $3)',
-      ['RFQ created', `${rfq.title} was created.`, req.session?.user?.id || null]
+      ['RFQ created', `${rfq.title} was created.`, req.user.id || null]
     );
 
     await client.query('COMMIT');
@@ -243,7 +243,7 @@ async function updateRfq(req, res) {
       return res.status(404).json({ message: 'RFQ not found' });
     }
 
-    await addLog('RFQ updated', `${result.rows[0].title} was updated.`, req.session?.user?.id);
+    await addLog('RFQ updated', `${result.rows[0].title} was updated.`, req.user.id);
     res.json(result.rows[0]);
   } catch (error) {
     console.error(error);
@@ -268,7 +268,7 @@ async function updateRfqStatus(req, res) {
       return res.status(404).json({ message: 'RFQ not found' });
     }
 
-    await addLog('RFQ status changed', `${result.rows[0].title} is now ${status}.`, req.session?.user?.id);
+    await addLog('RFQ status changed', `${result.rows[0].title} is now ${status}.`, req.user.id);
     res.json(result.rows[0]);
   } catch (error) {
     console.error(error);

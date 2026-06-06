@@ -4,6 +4,7 @@
   "description": "Backend API for VendorBridge",
   "main": "app.js",
   "scripts": {
+    "db:init": "node db/init.js",
     "start": "node app.js",
     "dev": "nodemon app.js"
   },

@@ -68,7 +68,7 @@ async function createVendor(req, res) {
     );
 
     const vendor = result.rows[0];
-    await addLog('Vendor created', `${vendor.name} was added.`, req.session?.user?.id);
+    await addLog('Vendor created', `${vendor.name} was added.`, req.user.id);
     res.status(201).json(vendor);
   } catch (error) {
     console.error(error);
@@ -104,7 +104,7 @@ async function updateVendor(req, res) {
     }
 
     const vendor = result.rows[0];
-    await addLog('Vendor updated', `${vendor.name} was updated.`, req.session?.user?.id);
+    await addLog('Vendor updated', `${vendor.name} was updated.`, req.user.id);
     res.json(vendor);
   } catch (error) {
     console.error(error);
@@ -126,7 +126,7 @@ async function updateVendorStatus(req, res) {
       [nextStatus, req.params.id]
     );
 
-    await addLog('Vendor status changed', `${result.rows[0].name} is now ${nextStatus}.`, req.session?.user?.id);
+    await addLog('Vendor status changed', `${result.rows[0].name} is now ${nextStatus}.`, req.user.id);
     res.json(result.rows[0]);
   } catch (error) {
     console.error(error);

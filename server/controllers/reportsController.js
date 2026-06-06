@@ -22,6 +22,7 @@ function monthLabel(date) {
 async function getStats(req, res) {
   try {
     const vendors = await pool.query('SELECT COUNT(*)::int AS count FROM vendors');
+    const activeVendors = await pool.query("SELECT COUNT(*)::int AS count FROM vendors WHERE status = 'Active'");
     const rfqs = await pool.query('SELECT COUNT(*)::int AS count FROM rfqs');
     const pos = await pool.query('SELECT COUNT(*)::int AS count FROM purchase_orders');
     const completedPos = await pool.query(
@@ -44,7 +45,7 @@ async function getStats(req, res) {
 
     res.json({
       total_vendors: vendors.rows[0].count,
-      active_vendors: vendors.rows[0].count,
+      active_vendors: activeVendors.rows[0].count,
       total_rfqs: rfqs.rows[0].count,
       total_pos: pos.rows[0].count,
       total_invoice_amount: toNumber(invoices.rows[0].total),

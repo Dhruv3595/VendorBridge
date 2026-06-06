@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
+import { Alert, Badge, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const emptyStats = {
   activeRfqs: 0,
@@ -11,7 +13,67 @@ const emptyStats = {
   spendingTrends: []
 };
 
+// Role-specific labels for the 4 stat cards
+const roleStatLabels = {
+  Admin: ['Active RFQs', 'Pending Approvals', 'POs This Month', 'Overdue Invoices'],
+  Officer: ['Active RFQs', 'Pending Approvals', 'POs This Month', 'Overdue Invoices'],
+  Vendor: ['Assigned RFQs', 'Selected Quotations', 'Submitted Quotations', 'Pending Invoices'],
+  Manager: ['Pending Approvals', 'Pending Approvals', 'Approved This Month', 'Rejected This Month']
+};
+
+function statusVariant(status) {
+  if (['Generated', 'Sent'].includes(status)) return 'primary';
+  if (status === 'Accepted') return 'success';
+  if (status === 'Completed') return 'secondary';
+  return 'warning';
+}
+
+// Role-specific quick actions
+function QuickActions({ role }) {
+  if (role === 'Officer') {
+    return (
+      <div className="d-grid gap-2">
+        <Button as={Link} to="/rfqs/new" variant="primary">+ New RFQ</Button>
+        <Button as={Link} to="/vendors/add" variant="outline-primary">Add Vendor</Button>
+        <Button as={Link} to="/invoices" variant="outline-secondary">View Invoices</Button>
+      </div>
+    );
+  }
+
+  if (role === 'Admin') {
+    return (
+      <div className="d-grid gap-2">
+        <Button as={Link} to="/vendors" variant="primary">Manage Vendors</Button>
+        <Button as={Link} to="/users" variant="outline-primary">Manage Users</Button>
+        <Button as={Link} to="/reports" variant="outline-secondary">View Reports</Button>
+      </div>
+    );
+  }
+
+  if (role === 'Vendor') {
+    return (
+      <div className="d-grid gap-2">
+        <Button as={Link} to="/rfqs" variant="primary">View Assigned RFQs</Button>
+        <Button as={Link} to="/quotations" variant="outline-primary">My Quotations</Button>
+        <Button as={Link} to="/invoices" variant="outline-secondary">Invoice Status</Button>
+      </div>
+    );
+  }
+
+  if (role === 'Manager') {
+    return (
+      <div className="d-grid gap-2">
+        <Button as={Link} to="/approvals" variant="primary">Review Approvals</Button>
+        <Button as={Link} to="/activity" variant="outline-secondary">Activity Log</Button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function Dashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState(emptyStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,11 +101,13 @@ export default function Dashboard() {
     loadStats();
   }, []);
 
+  const labels = roleStatLabels[user?.role] || roleStatLabels.Officer;
+
   const cards = [
-    { label: 'Active RFQs', value: stats.activeRfqs },
-    { label: 'Pending Approvals', value: stats.pendingApprovals },
-    { label: 'POs This Month', value: stats.posThisMonth },
-    { label: 'Overdue Invoices', value: stats.overdueInvoices }
+    { label: labels[0], value: stats.activeRfqs },
+    { label: labels[1], value: stats.pendingApprovals },
+    { label: labels[2], value: stats.posThisMonth },
+    { label: labels[3], value: stats.overdueInvoices }
   ];
 
   if (loading) {
@@ -85,15 +149,21 @@ export default function Dashboard() {
                 <tbody>
                   {stats.recentPOs.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="text-muted-small">No purchase orders found.</td>
+                      <td colSpan="5" className="text-muted-small">No purchase orders yet.</td>
                     </tr>
                   )}
                   {stats.recentPOs.map((po) => (
-                    <tr key={po.id}>
+                    <tr
+                      key={po.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => window.location.href = `/purchase-orders/${po.id}`}
+                    >
                       <td>{po.po_number}</td>
                       <td>{po.rfq_title || '-'}</td>
                       <td>{po.vendor_name || '-'}</td>
-                      <td>{po.status}</td>
+                      <td>
+                        <Badge bg={statusVariant(po.status)}>{po.status}</Badge>
+                      </td>
                       <td>{new Date(po.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
@@ -106,11 +176,7 @@ export default function Dashboard() {
           <Card className="stat-card shadow-sm h-100">
             <Card.Body>
               <h5 className="mb-3">Quick Actions</h5>
-              <div className="d-grid gap-2">
-                <Button variant="primary">New RFQ</Button>
-                <Button variant="outline-primary">Add Vendor</Button>
-                <Button variant="outline-secondary">View Invoices</Button>
-              </div>
+              <QuickActions role={user?.role} />
             </Card.Body>
           </Card>
         </Col>
@@ -119,17 +185,21 @@ export default function Dashboard() {
       <Card className="stat-card shadow-sm">
         <Card.Body>
           <h5 className="mb-3">Spending Trends</h5>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <BarChart data={stats.spendingTrends}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="amount" fill="#00A09D" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {stats.spendingTrends.length === 0 ? (
+            <p className="text-muted-small mb-0">No spending data yet.</p>
+          ) : (
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart data={stats.spendingTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => `Rs. ${Number(value).toFixed(2)}`} />
+                  <Bar dataKey="amount" fill="#00A09D" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card.Body>
       </Card>
     </>

@@ -22,6 +22,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ── Buttons ── */
 .btn-primary {
   background-color: var(--primary);
   border-color: var(--primary);
@@ -33,26 +34,33 @@ body {
   border-color: var(--primary-dark);
 }
 
+/* ── Navbar ── */
 .navbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Sidebar ── */
 .sidebar {
-  width: 250px;
+  width: 240px;
   min-height: 100vh;
   background: var(--primary);
   color: #ffffff;
   position: fixed;
   left: 0;
   top: 0;
-  padding: 20px 16px;
+  padding: 20px 14px;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .sidebar .nav-link {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.85);
   border-radius: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  padding: 7px 12px;
+  font-size: 0.9rem;
+  transition: background 0.15s, color 0.15s;
 }
 
 .sidebar .nav-link:hover {
@@ -63,13 +71,16 @@ body {
 .sidebar .nav-link.active {
   background: var(--accent);
   color: #ffffff;
+  font-weight: 600;
 }
 
+/* ── Main content ── */
 .main-content {
-  margin-left: 250px;
+  margin-left: 240px;
   min-height: 100vh;
 }
 
+/* ── Auth page ── */
 .auth-page {
   min-height: 100vh;
   background: var(--primary-light);
@@ -81,17 +92,54 @@ body {
 
 .auth-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
+/* ── Cards ── */
 .stat-card {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
 
+/* ── Typography ── */
 .text-muted-small {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
+}
+
+/* ── Invoice print styling ── */
+@media print {
+  .sidebar,
+  .navbar,
+  .btn,
+  .d-flex.flex-wrap.gap-2.mt-3 {
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  .invoice-card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ── Tables ── */
+.table > :not(caption) > * > * {
+  padding: 0.6rem 0.75rem;
+}
+
+/* ── Responsive sidebar ── */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .main-content {
+    margin-left: 200px;
+  }
 }

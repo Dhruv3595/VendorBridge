@@ -11,42 +11,42 @@ export function dashboardPathForRole(role) {
 
 export const sidebarItemsByRole = {
   Admin: [
-    { path: '/admin/dashboard', label: 'Dashboard' },
-    { path: '/users', label: 'Users' },
-    { path: '/vendors', label: 'Vendors' },
-    { path: '/rfqs', label: 'RFQs' },
-    { path: '/quotations', label: 'Quotations' },
-    { path: '/approvals', label: 'Approvals' },
-    { path: '/purchase-orders', label: 'Purchase Orders' },
-    { path: '/invoices', label: 'Invoices' },
-    { path: '/reports', label: 'Reports' },
-    { path: '/activity', label: 'Activity Logs' }
+    { path: '/admin/dashboard', label: 'Dashboard',       icon: '📊' },
+    { path: '/users',           label: 'Users',           icon: '👥' },
+    { path: '/vendors',         label: 'Vendors',         icon: '🏭' },
+    { path: '/rfqs',            label: 'RFQs',            icon: '📋' },
+    { path: '/quotations',      label: 'Quotations',      icon: '💬' },
+    { path: '/approvals',       label: 'Approvals',       icon: '✅' },
+    { path: '/purchase-orders', label: 'Purchase Orders', icon: '📦' },
+    { path: '/invoices',        label: 'Invoices',        icon: '🧾' },
+    { path: '/reports',         label: 'Reports',         icon: '📈' },
+    { path: '/activity',        label: 'Activity Logs',   icon: '📝' }
   ],
   Officer: [
-    { path: '/officer/dashboard', label: 'Dashboard' },
-    { path: '/vendors', label: 'Vendors' },
-    { path: '/rfqs', label: 'RFQs' },
-    { path: '/quotations', label: 'Quotations' },
-    { path: '/approvals', label: 'Approvals' },
-    { path: '/purchase-orders', label: 'Purchase Orders' },
-    { path: '/invoices', label: 'Invoices' },
-    { path: '/reports', label: 'Reports' },
-    { path: '/activity', label: 'Activity' }
+    { path: '/officer/dashboard', label: 'Dashboard',       icon: '📊' },
+    { path: '/vendors',           label: 'Vendors',         icon: '🏭' },
+    { path: '/rfqs',              label: 'RFQs',            icon: '📋' },
+    { path: '/quotations',        label: 'Quotations',      icon: '💬' },
+    { path: '/approvals',         label: 'Approvals',       icon: '✅' },
+    { path: '/purchase-orders',   label: 'Purchase Orders', icon: '📦' },
+    { path: '/invoices',          label: 'Invoices',        icon: '🧾' },
+    { path: '/reports',           label: 'Reports',         icon: '📈' },
+    { path: '/activity',          label: 'Activity',        icon: '📝' }
   ],
   Vendor: [
-    { path: '/vendor/dashboard', label: 'Dashboard' },
-    { path: '/rfqs', label: 'Assigned RFQs' },
-    { path: '/quotations', label: 'My Quotations' },
-    { path: '/purchase-orders', label: 'Purchase Orders' },
-    { path: '/invoices', label: 'Invoice Status' },
-    { path: '/activity', label: 'Activity' }
+    { path: '/vendor/dashboard', label: 'Dashboard',       icon: '📊' },
+    { path: '/rfqs',             label: 'Assigned RFQs',   icon: '📋' },
+    { path: '/quotations',       label: 'My Quotations',   icon: '💬' },
+    { path: '/purchase-orders',  label: 'Purchase Orders', icon: '📦' },
+    { path: '/invoices',         label: 'Invoice Status',  icon: '🧾' },
+    { path: '/activity',         label: 'Activity',        icon: '📝' }
   ],
   Manager: [
-    { path: '/manager/dashboard', label: 'Dashboard' },
-    { path: '/approvals', label: 'Pending Approvals' },
-    { path: '/approvals?status=Approved', label: 'Approved Requests' },
-    { path: '/approvals?status=Rejected', label: 'Rejected Requests' },
-    { path: '/activity', label: 'Workflow Monitor' }
+    { path: '/manager/dashboard',        label: 'Dashboard',          icon: '📊' },
+    { path: '/approvals',                label: 'Pending Approvals',  icon: '⏳' },
+    { path: '/approvals?status=Approved',label: 'Approved Requests',  icon: '✅' },
+    { path: '/approvals?status=Rejected',label: 'Rejected Requests',  icon: '❌' },
+    { path: '/activity',                 label: 'Workflow Monitor',   icon: '📝' }
   ]
 };
 

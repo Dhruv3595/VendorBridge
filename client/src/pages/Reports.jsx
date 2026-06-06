@@ -9,6 +9,7 @@ function money(value) {
 export default function Reports() {
   const [stats, setStats] = useState(null);
   const [monthlySpend, setMonthlySpend] = useState([]);
+  const [spendByCategory, setSpendByCategory] = useState([]);
   const [topVendors, setTopVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,22 +17,26 @@ export default function Reports() {
   useEffect(() => {
     async function loadReports() {
       try {
-        const [statsRes, monthlyRes, vendorsRes] = await Promise.all([
-          fetch('/api/reports/stats', { credentials: 'include' }),
-          fetch('/api/reports/monthly-spend', { credentials: 'include' }),
+        const [statsRes, monthlyRes, categoryRes, vendorsRes] = await Promise.all([
+          fetch('/api/reports/summary', { credentials: 'include' }),
+          fetch('/api/reports/monthly-trend', { credentials: 'include' }),
+          fetch('/api/reports/spend-by-category', { credentials: 'include' }),
           fetch('/api/reports/top-vendors', { credentials: 'include' })
         ]);
 
         const statsData = await statsRes.json();
         const monthlyData = await monthlyRes.json();
+        const categoryData = await categoryRes.json();
         const vendorsData = await vendorsRes.json();
 
         if (!statsRes.ok) throw new Error(statsData.message || 'Could not load stats');
         if (!monthlyRes.ok) throw new Error(monthlyData.message || 'Could not load monthly spend');
+        if (!categoryRes.ok) throw new Error(categoryData.message || 'Could not load category spend');
         if (!vendorsRes.ok) throw new Error(vendorsData.message || 'Could not load top vendors');
 
         setStats(statsData);
         setMonthlySpend(monthlyData);
+        setSpendByCategory(categoryData);
         setTopVendors(vendorsData);
       } catch (err) {
         setError(err.message);
@@ -72,10 +77,10 @@ export default function Reports() {
   }
 
   const cards = [
-    { label: 'Total Vendors', value: stats?.total_vendors || 0 },
-    { label: 'Total RFQs', value: stats?.total_rfqs || 0 },
-    { label: 'Total POs', value: stats?.total_pos || 0 },
-    { label: 'Invoice Total', value: money(stats?.total_invoice_amount || 0) }
+    { label: 'Total Spend', value: money(stats?.total_invoice_amount || 0) },
+    { label: 'Active Vendors', value: stats?.active_vendors || 0 },
+    { label: 'PO Fulfillment', value: `${stats?.po_fulfillment_percent || 0}%` },
+    { label: 'Overdue Invoices', value: stats?.overdue_invoices || 0 }
   ];
 
   return (
@@ -117,34 +122,66 @@ export default function Reports() {
         </Card.Body>
       </Card>
 
-      <Card className="stat-card shadow-sm">
-        <Card.Body>
-          <h5 className="mb-3">Top Vendors</h5>
-          <Table responsive hover className="mb-0">
-            <thead>
-              <tr>
-                <th>Vendor Name</th>
-                <th>PO Count</th>
-                <th>Total Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topVendors.length === 0 && (
-                <tr>
-                  <td colSpan="3" className="text-muted-small">No vendor data found.</td>
-                </tr>
-              )}
-              {topVendors.map((vendor) => (
-                <tr key={vendor.id || vendor.vendor_name}>
-                  <td>{vendor.vendor_name || '-'}</td>
-                  <td>{vendor.po_count}</td>
-                  <td>{money(vendor.total_value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card.Body>
-      </Card>
+      <Row className="g-3">
+        <Col lg={6}>
+          <Card className="stat-card shadow-sm h-100">
+            <Card.Body>
+              <h5 className="mb-3">Spend by Category</h5>
+              <Table responsive hover className="mb-0">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Total Spend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spendByCategory.length === 0 && (
+                    <tr>
+                      <td colSpan="2" className="text-muted-small">No category spend found.</td>
+                    </tr>
+                  )}
+                  {spendByCategory.map((row) => (
+                    <tr key={row.category}>
+                      <td>{row.category}</td>
+                      <td>{money(row.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={6}>
+          <Card className="stat-card shadow-sm h-100">
+            <Card.Body>
+              <h5 className="mb-3">Top Vendors</h5>
+              <Table responsive hover className="mb-0">
+                <thead>
+                  <tr>
+                    <th>Vendor Name</th>
+                    <th>PO Count</th>
+                    <th>Total Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topVendors.length === 0 && (
+                    <tr>
+                      <td colSpan="3" className="text-muted-small">No vendor data found.</td>
+                    </tr>
+                  )}
+                  {topVendors.map((vendor) => (
+                    <tr key={vendor.id || vendor.vendor_name}>
+                      <td>{vendor.vendor_name || '-'}</td>
+                      <td>{vendor.po_count}</td>
+                      <td>{money(vendor.total_value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
     </>
   );
 }

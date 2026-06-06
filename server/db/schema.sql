@@ -118,6 +118,9 @@ CREATE TABLE invoices (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX invoices_one_per_purchase_order
+ON invoices (po_id);
+
 CREATE TABLE activity_logs (
   id SERIAL PRIMARY KEY,
   organization_id INTEGER DEFAULT 1,

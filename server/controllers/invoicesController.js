@@ -177,6 +177,16 @@ async function createInvoice(req, res) {
       return res.status(404).json({ message: 'Purchase order not found' });
     }
 
+    const existingInvoice = await client.query(
+      'SELECT id FROM invoices WHERE po_id = $1',
+      [po_id]
+    );
+
+    if (existingInvoice.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ message: 'Invoice already exists for this purchase order' });
+    }
+
     const invoiceResult = await client.query(
       `INSERT INTO invoices (po_id, invoice_number, invoice_date, due_date, status)
        VALUES ($1, 'INV-TEMP-' || $1::TEXT, $2, $3, 'Pending Payment')

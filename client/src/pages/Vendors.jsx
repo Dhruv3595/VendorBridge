@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Nav, Spinner, Table } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function statusBadge(status) {
   return status === 'Active' ? 'success' : 'danger';
 }
 
 export default function Vendors() {
+  const { user } = useAuth();
   const [vendors, setVendors] = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
@@ -52,7 +54,9 @@ export default function Vendors() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <Button as={Link} to="/vendors/add" variant="primary">+ Add Vendor</Button>
+        {['Admin', 'Officer'].includes(user?.role) && (
+          <Button as={Link} to="/vendors/add" variant="primary">+ Add Vendor</Button>
+        )}
       </div>
 
       <Nav variant="tabs" activeKey={status} onSelect={(key) => setStatus(key || 'All')} className="mb-3">
