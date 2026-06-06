@@ -4,14 +4,14 @@
 -- bcrypt hash for 'Admin@123'
 -- ============================================================
 
--- Users (all passwords = Admin@123)
+-- Users (Role-based passwords e.g., admin123, officer123)
 INSERT INTO users (name, email, password_hash, role, phone, country, photo_url)
 VALUES
-  ('Admin User',          'admin@vendorbridge.com',   '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Admin',   '9876543210', 'India', NULL),
-  ('Procurement Officer', 'officer@vendorbridge.com', '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Officer', '9876543211', 'India', NULL),
-  ('Vendor User',         'vendor@vendorbridge.com',  '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Vendor',  '9876543212', 'India', NULL),
-  ('Manager Approver',    'manager@vendorbridge.com', '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Manager', '9876543213', 'India', NULL),
-  ('Vendor Two',          'vendor2@vendorbridge.com', '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Vendor',  '9876543214', 'India', NULL);
+  ('Admin User',          'admin@vendorbridge.com',   '$2a$10$SrqmVLMwQJezy.V.6msTLuq/DqcPtIl5cXdzwecOcR33oz.iSNbFS', 'Admin',   '9876543210', 'India', NULL),
+  ('Procurement Officer', 'officer@vendorbridge.com', '$2a$10$5.7.WUGGTsWzZBEd.FdGBe3Wt4S8MIzXbJERGWqOeJlq0hYjBXi76', 'Officer', '9876543211', 'India', NULL),
+  ('Vendor User',         'vendor@vendorbridge.com',  '$2a$10$q.SQF2AcAF60L44SFNt2huWgjz1ss5RtWLK0Mk2lvyc32TmXQs06q', 'Vendor',  '9876543212', 'India', NULL),
+  ('Manager Approver',    'manager@vendorbridge.com', '$2a$10$mXI13TmF6scf90540ui7aeEaNv6qpoUTXrpjnVVcSytbnU8m7AJmG', 'Manager', '9876543213', 'India', NULL),
+  ('Vendor Two',          'vendor2@vendorbridge.com', '$2a$10$q.SQF2AcAF60L44SFNt2huWgjz1ss5RtWLK0Mk2lvyc32TmXQs06q', 'Vendor',  '9876543214', 'India', NULL);
 
 -- Vendors
 INSERT INTO vendors (name, category, gst_number, contact_person, phone, email, address, status)

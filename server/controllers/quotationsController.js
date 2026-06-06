@@ -52,6 +52,15 @@ async function getQuotationsByRfq(req, res) {
   }
 
   try {
+    // When Admin/Officer fetches quotations for an RFQ, advance its status to Under Comparison
+    if (['Admin', 'Officer'].includes(req.user.role)) {
+      await pool.query(
+        `UPDATE rfqs SET status = 'Under Comparison'
+         WHERE id = $1 AND status = 'Quotation Received'`,
+        [req.params.rfqId]
+      );
+    }
+
     const result = await pool.query(
       `SELECT q.*,
               v.name AS vendor_name,
@@ -327,6 +336,30 @@ async function selectQuotation(req, res) {
   }
 }
 
+async function withdrawQuotation(req, res) {
+  try {
+    const result = await pool.query(
+      `UPDATE quotations
+       SET status = 'Withdrawn'
+       WHERE id = $1
+         AND vendor_id = $2
+         AND status = 'Submitted'
+       RETURNING *`,
+      [req.params.id, req.user.vendorId || 0]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Submitted quotation not found or already processed' });
+    }
+
+    await addLog('Quotation withdrawn', `Quotation #${req.params.id} was withdrawn by vendor.`, req.user.id);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Could not withdraw quotation' });
+  }
+}
+
 module.exports = {
   getQuotations,
   getQuotationsByRfq,
@@ -334,5 +367,6 @@ module.exports = {
   createQuotation,
   updateQuotation,
   submitQuotation,
-  selectQuotation
+  selectQuotation,
+  withdrawQuotation
 };

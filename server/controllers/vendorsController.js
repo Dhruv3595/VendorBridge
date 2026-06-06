@@ -114,13 +114,18 @@ async function updateVendor(req, res) {
 
 async function updateVendorStatus(req, res) {
   try {
+    const { status } = req.body;
     const current = await pool.query('SELECT * FROM vendors WHERE id = $1', [req.params.id]);
 
     if (current.rows.length === 0) {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
-    const nextStatus = current.rows[0].status === 'Active' ? 'Blocked' : 'Active';
+    let nextStatus = status;
+    if (!nextStatus) {
+      nextStatus = current.rows[0].status === 'Active' ? 'Blocked' : 'Active';
+    }
+
     const result = await pool.query(
       'UPDATE vendors SET status = $1 WHERE id = $2 RETURNING *',
       [nextStatus, req.params.id]
