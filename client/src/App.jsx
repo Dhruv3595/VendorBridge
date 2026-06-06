@@ -10,6 +10,10 @@ import VendorForm from './pages/VendorForm.jsx';
 import VendorDetail from './pages/VendorDetail.jsx';
 import RFQs from './pages/RFQs.jsx';
 import RFQForm from './pages/RFQForm.jsx';
+import QuotationSubmit from './pages/QuotationSubmit.jsx';
+import QuotationCompare from './pages/QuotationCompare.jsx';
+import Approvals from './pages/Approvals.jsx';
+import ApprovalDetail from './pages/ApprovalDetail.jsx';
 
 function ProtectedRoute({ title, children }) {
   const { user, loading } = useAuth();
@@ -61,6 +65,38 @@ export default function App() {
           )}
         />
         <Route
+          path="/rfqs/:rfqId/quotations/compare"
+          element={(
+            <ProtectedRoute title="Compare Quotations">
+              <QuotationCompare />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/rfqs/:rfqId/quotations/submit"
+          element={(
+            <ProtectedRoute title="Submit Quotation">
+              <QuotationSubmit />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/approvals"
+          element={(
+            <ProtectedRoute title="Approvals">
+              <Approvals />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/approvals/:id"
+          element={(
+            <ProtectedRoute title="Approval Detail">
+              <ApprovalDetail />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/vendors"
           element={(
             <ProtectedRoute title="Vendors">
@@ -100,7 +136,7 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
-        {['quotations', 'approvals', 'purchase-orders', 'invoices', 'reports', 'activity'].map((path) => (
+        {['quotations', 'purchase-orders', 'invoices', 'reports', 'activity'].map((path) => (
           <Route
             key={path}
             path={`/${path}`}
