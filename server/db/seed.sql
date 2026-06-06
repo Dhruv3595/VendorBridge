@@ -1,8 +1,8 @@
 INSERT INTO users (name, email, password_hash, role, phone, country, photo_url)
 VALUES
-  ('Admin User', 'admin@vendorbridge.com', '$2a$10$B0qZ3ROEDDgTASsSxjfvyOKhnI8wDj1mQBuPI8z0BSbP46jtFPucm', 'Admin', '9876543210', 'India', NULL),
-  ('Procurement Officer', 'officer@vendorbridge.com', '$2a$10$B0qZ3ROEDDgTASsSxjfvyOKhnI8wDj1mQBuPI8z0BSbP46jtFPucm', 'Officer', '9876543211', 'India', NULL),
-  ('Vendor User', 'vendor@vendorbridge.com', '$2a$10$B0qZ3ROEDDgTASsSxjfvyOKhnI8wDj1mQBuPI8z0BSbP46jtFPucm', 'Vendor', '9876543212', 'India', NULL);
+  ('Admin User', 'admin@vendorbridge.com', '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Admin', '9876543210', 'India', NULL),
+  ('Procurement Officer', 'officer@vendorbridge.com', '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Officer', '9876543211', 'India', NULL),
+  ('Vendor User', 'vendor@vendorbridge.com', '$2a$10$Lou8.HPlLdFiGBk21fdvXOuvANGSoI2FHLMwCMbkx/sz39mRTQXku', 'Vendor', '9876543212', 'India', NULL);
 
 INSERT INTO vendors (name, category, gst_number, contact_person, phone, email, address, status)
 VALUES

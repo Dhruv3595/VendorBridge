@@ -2,6 +2,12 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext();
 
+async function readJson(response) {
+  const text = await response.text();
+  if (!text) return {};
+  return JSON.parse(text);
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,7 +20,7 @@ export function AuthProvider({ children }) {
         });
 
         if (response.ok) {
-          const data = await response.json();
+          const data = await readJson(response);
           setUser(data.user);
         }
       } catch (error) {
@@ -35,10 +41,10 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password })
     });
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
+      throw new Error(data.message || 'Login failed. Please check that the server is running.');
     }
 
     setUser(data.user);
@@ -53,10 +59,10 @@ export function AuthProvider({ children }) {
       body: JSON.stringify(formData)
     });
 
-    const data = await response.json();
+    const data = await readJson(response);
 
     if (!response.ok) {
-      throw new Error(data.message || 'Signup failed');
+      throw new Error(data.message || 'Signup failed. Please check that the server is running.');
     }
 
     setUser(data.user);
