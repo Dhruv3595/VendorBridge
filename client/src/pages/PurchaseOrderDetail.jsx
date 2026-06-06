@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function money(value) {
   return `Rs. ${Number(value || 0).toFixed(2)}`;
@@ -18,6 +19,7 @@ function inputDate(date) {
 export default function PurchaseOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [po, setPo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,9 +100,11 @@ export default function PurchaseOrderDetail() {
         </div>
         <div className="d-flex gap-2 align-items-center">
           <Badge bg="warning">{po.status}</Badge>
-          <Button variant="primary" onClick={generateInvoice} disabled={saving}>
-            {saving ? 'Generating...' : 'Generate Invoice'}
-          </Button>
+          {user?.role === 'Officer' && (
+            <Button variant="primary" onClick={generateInvoice} disabled={saving}>
+              {saving ? 'Generating...' : 'Generate Invoice'}
+            </Button>
+          )}
         </div>
       </div>
 

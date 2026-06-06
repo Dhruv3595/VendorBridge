@@ -11,7 +11,8 @@ function cleanUser(user) {
     vendorId: user.vendor_id,
     phone: user.phone,
     country: user.country,
-    photo_url: user.photo_url
+    photo_url: user.photo_url,
+    status: user.status
   };
 }
 
@@ -30,6 +31,10 @@ async function login(req, res) {
     }
 
     const user = result.rows[0];
+    if (user.status && user.status !== 'Active') {
+      return res.status(403).json({ message: `Account is ${user.status}` });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {

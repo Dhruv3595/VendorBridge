@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Card, Col, Form, Row } from 'react-bootstrap';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { dashboardPathForRole } from '../sidebarItems.js';
 
 export default function Signup() {
   const { user, signup } = useAuth();
@@ -19,7 +20,7 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={dashboardPathForRole(user.role)} replace />;
   }
 
   function handleChange(event) {
@@ -33,8 +34,8 @@ export default function Signup() {
     setSubmitting(true);
 
     try {
-      await signup(formData);
-      navigate('/dashboard');
+      const signedUpUser = await signup(formData);
+      navigate(dashboardPathForRole(signedUpUser.role));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -86,6 +87,7 @@ export default function Signup() {
                     <option>Admin</option>
                     <option>Officer</option>
                     <option>Vendor</option>
+                    <option>Manager</option>
                   </Form.Select>
                 </Form.Group>
               </Col>

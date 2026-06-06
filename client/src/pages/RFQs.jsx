@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Spinner, Table } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function badgeVariant(status) {
-  if (status === 'Active') return 'success';
-  if (status === 'Closed') return 'secondary';
+  if (['Published', 'Quotation Received', 'Approved', 'PO Generated'].includes(status)) return 'success';
+  if (['Closed', 'Rejected', 'Expired'].includes(status)) return 'secondary';
+  if (status === 'Approval Pending') return 'primary';
   return 'warning';
 }
 
 export default function RFQs() {
+  const { user } = useAuth();
   const [rfqs, setRfqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,11 +39,33 @@ export default function RFQs() {
     loadRfqs();
   }, []);
 
+  async function publishRfq(rfqId) {
+    setError('');
+
+    try {
+      const response = await fetch(`/api/rfqs/${rfqId}/publish`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Could not publish RFQ');
+      }
+
+      setRfqs((current) => current.map((rfq) => (rfq.id === rfqId ? data : rfq)));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">RFQs</h5>
-        <Button as={Link} to="/rfqs/new" variant="primary">+ New RFQ</Button>
+        {user?.role === 'Officer' && (
+          <Button as={Link} to="/rfqs/new" variant="primary">+ New RFQ</Button>
+        )}
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
@@ -58,12 +83,13 @@ export default function RFQs() {
                   <th>Deadline</th>
                   <th>Assigned Vendors</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {rfqs.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="text-muted-small">No RFQs found.</td>
+                    <td colSpan="6" className="text-muted-small">No RFQs found.</td>
                   </tr>
                 )}
                 {rfqs.map((rfq) => (
@@ -74,6 +100,35 @@ export default function RFQs() {
                     <td>{rfq.assigned_vendor_count}</td>
                     <td>
                       <Badge bg={badgeVariant(rfq.status)}>{rfq.status}</Badge>
+                    </td>
+                    <td>
+                      <div className="d-flex flex-wrap gap-2">
+                        {user?.role === 'Officer' && rfq.status === 'Draft' && (
+                          <Button size="sm" variant="outline-primary" onClick={() => publishRfq(rfq.id)}>
+                            Publish
+                          </Button>
+                        )}
+                        {['Admin', 'Officer'].includes(user?.role) && (
+                          <Button
+                            size="sm"
+                            as={Link}
+                            to={`/rfqs/${rfq.id}/quotations/compare`}
+                            variant="outline-secondary"
+                          >
+                            Compare
+                          </Button>
+                        )}
+                        {user?.role === 'Vendor' && ['Published', 'Quotation Received'].includes(rfq.status) && (
+                          <Button
+                            size="sm"
+                            as={Link}
+                            to={`/rfqs/${rfq.id}/quotations/submit`}
+                            variant="outline-primary"
+                          >
+                            Submit Quote
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

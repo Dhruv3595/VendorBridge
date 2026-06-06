@@ -45,11 +45,11 @@ export default function QuotationCompare() {
     setError('');
 
     try {
-      const res = await fetch('/api/approvals', {
-        method: 'POST',
+      const res = await fetch(`/api/quotations/${quotationId}/select`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ quotation_id: quotationId, level: 1 })
+        body: JSON.stringify({})
       });
 
       const data = await res.json();

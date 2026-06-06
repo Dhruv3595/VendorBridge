@@ -217,7 +217,7 @@ export default function ApprovalDetail() {
         <Card style={{ borderColor: 'var(--border)' }}>
           <Card.Body>
             <Form.Group className="mb-3">
-              <Form.Label className="small fw-semibold">Remarks (optional)</Form.Label>
+              <Form.Label className="small fw-semibold">Remarks</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={2}

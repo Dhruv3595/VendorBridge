@@ -111,6 +111,7 @@ async function getInvoices(req, res) {
     const result = await pool.query(
       `SELECT i.id,
               i.po_id,
+              i.invoice_number,
               i.invoice_date,
               i.due_date,
               i.status,

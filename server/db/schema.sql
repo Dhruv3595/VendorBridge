@@ -21,6 +21,7 @@ CREATE TABLE users (
   phone VARCHAR(30),
   country VARCHAR(80),
   photo_url TEXT,
+  status VARCHAR(30) DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

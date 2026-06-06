@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Badge, Card, Spinner, Table } from 'react-bootstrap';
 
 function statusVariant(status) {
-  if (status === 'Issued') return 'primary';
-  if (status === 'Closed') return 'secondary';
+  if (status === 'Generated' || status === 'Sent') return 'primary';
+  if (status === 'Accepted') return 'success';
+  if (status === 'Completed') return 'secondary';
   return 'warning';
 }
 

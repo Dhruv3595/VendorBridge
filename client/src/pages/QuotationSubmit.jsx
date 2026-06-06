@@ -10,46 +10,71 @@ export default function QuotationSubmit() {
   const [items, setItems] = useState([]);
   const [taxPercent, setTaxPercent] = useState(0);
   const [notes, setNotes] = useState('');
-  const [vendorId, setVendorId] = useState('');
+  const [quotationId, setQuotationId] = useState(null);
+  const [quotationStatus, setQuotationStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    async function loadRfq() {
+    async function loadRfqAndDraft() {
       try {
-        const res = await fetch(`/api/rfqs/${rfqId}`, { credentials: 'include' });
-        if (!res.ok) throw new Error('RFQ not found');
-        const data = await res.json();
-        setRfq(data);
-        // Pre-fill items from RFQ line items
-        setItems(
-          (data.items || []).map((item) => ({
-            item_name: item.item_name,
-            quantity: item.quantity,
-            unit_price: '',
-            delivery_days: ''
-          }))
-        );
+        const [rfqResponse, quotationResponse] = await Promise.all([
+          fetch(`/api/rfqs/${rfqId}`, { credentials: 'include' }),
+          fetch(`/api/quotations/rfq/${rfqId}`, { credentials: 'include' })
+        ]);
+
+        if (!rfqResponse.ok) throw new Error('RFQ not found');
+
+        const rfqData = await rfqResponse.json();
+        const existingQuotations = quotationResponse.ok ? await quotationResponse.json() : [];
+        const existing = existingQuotations[0];
+
+        setRfq(rfqData);
+
+        if (existing) {
+          const detailResponse = await fetch(`/api/quotations/${existing.id}`, { credentials: 'include' });
+          const detail = detailResponse.ok ? await detailResponse.json() : existing;
+          setQuotationId(detail.id);
+          setQuotationStatus(detail.status);
+          setTaxPercent(detail.tax_percent || 0);
+          setNotes(detail.notes || '');
+          setItems(
+            (detail.items || []).map((item) => ({
+              item_name: item.item_name,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              delivery_days: item.delivery_days || ''
+            }))
+          );
+        } else {
+          setItems(
+            (rfqData.items || []).map((item) => ({
+              item_name: item.item_name,
+              quantity: item.quantity,
+              unit_price: '',
+              delivery_days: ''
+            }))
+          );
+        }
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     }
-    loadRfq();
+
+    loadRfqAndDraft();
   }, [rfqId]);
 
-  // Update a single field in the items table
   function handleItemChange(index, field, value) {
-    setItems((prev) => {
-      const updated = [...prev];
+    setItems((current) => {
+      const updated = [...current];
       updated[index] = { ...updated[index], [field]: value };
       return updated;
     });
   }
 
-  // Live-calculated totals
   const subtotal = items.reduce((sum, item) => {
     const qty = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.unit_price) || 0;
@@ -57,39 +82,51 @@ export default function QuotationSubmit() {
   }, 0);
   const taxAmount = subtotal * (parseFloat(taxPercent) || 0) / 100;
   const grandTotal = subtotal + taxAmount;
+  const canEdit = !quotationStatus || quotationStatus === 'Draft';
 
   async function handleSubmit(status) {
     setError('');
     setSaving(true);
 
     try {
-      const res = await fetch('/api/quotations', {
-        method: 'POST',
+      if (!canEdit) {
+        throw new Error('Submitted quotations cannot be edited');
+      }
+
+      const payload = {
+        rfq_id: rfqId,
+        tax_percent: parseFloat(taxPercent) || 0,
+        notes,
+        items: items.map((item) => ({
+          item_name: item.item_name,
+          quantity: parseFloat(item.quantity),
+          unit_price: parseFloat(item.unit_price) || 0,
+          delivery_days: parseInt(item.delivery_days, 10) || null
+        }))
+      };
+
+      const response = await fetch(quotationId ? `/api/quotations/${quotationId}` : '/api/quotations', {
+        method: quotationId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          rfq_id: rfqId,
-          vendor_id: vendorId || rfq?.vendors?.[0]?.id,
-          tax_percent: parseFloat(taxPercent) || 0,
-          notes,
-          items: items.map((item) => ({
-            item_name: item.item_name,
-            quantity: parseFloat(item.quantity),
-            unit_price: parseFloat(item.unit_price) || 0,
-            delivery_days: parseInt(item.delivery_days) || null
-          }))
-        })
+        body: JSON.stringify(payload)
       });
+      const data = await response.json();
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to save');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to save quotation');
+      }
 
-      // If submitting (not just saving as draft), patch status
       if (status === 'Submitted') {
-        await fetch(`/api/quotations/${data.id}/submit`, {
+        const submitResponse = await fetch(`/api/quotations/${data.id}/submit`, {
           method: 'PATCH',
           credentials: 'include'
         });
+        const submitData = await submitResponse.json();
+
+        if (!submitResponse.ok) {
+          throw new Error(submitData.message || 'Draft saved but could not be submitted');
+        }
       }
 
       navigate('/quotations');
@@ -114,39 +151,40 @@ export default function QuotationSubmit() {
 
   return (
     <div>
-      {/* RFQ summary at top */}
-      <Card className="mb-4" style={{ borderColor: 'var(--border)' }}>
+      <Card className="mb-4 stat-card">
         <Card.Body>
           <h5 className="mb-1">{rfq?.title}</h5>
-          <span className="text-muted-small me-3">Category: {rfq?.category || '—'}</span>
-          <span className="text-muted-small me-3">Deadline: {rfq?.deadline || '—'}</span>
-          <span className="text-muted-small">Status: {rfq?.status}</span>
+          <span className="text-muted-small me-3">Category: {rfq?.category || '-'}</span>
+          <span className="text-muted-small me-3">
+            Deadline: {rfq?.deadline ? new Date(rfq.deadline).toLocaleDateString() : '-'}
+          </span>
+          <span className="text-muted-small me-3">RFQ Status: {rfq?.status}</span>
+          {quotationStatus && <span className="text-muted-small">Quotation: {quotationStatus}</span>}
         </Card.Body>
       </Card>
 
       {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
 
       <div className="row">
-        {/* Left — items table + fields */}
         <div className="col-lg-8">
-          <Card className="mb-3" style={{ borderColor: 'var(--border)' }}>
+          <Card className="mb-3 stat-card">
             <Card.Body>
               <h6 className="mb-3">Line Items</h6>
               <Table bordered hover responsive size="sm">
-                <thead style={{ background: 'var(--primary-light)' }}>
+                <thead>
                   <tr>
                     <th>Item</th>
                     <th style={{ width: 90 }}>Qty</th>
-                    <th style={{ width: 130 }}>Unit Price (₹)</th>
+                    <th style={{ width: 130 }}>Unit Price</th>
                     <th style={{ width: 120 }}>Delivery Days</th>
                     <th style={{ width: 130 }}>Line Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, i) => {
+                  {items.map((item, index) => {
                     const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
                     return (
-                      <tr key={i}>
+                      <tr key={item.item_name}>
                         <td>{item.item_name}</td>
                         <td>{item.quantity}</td>
                         <td>
@@ -156,7 +194,8 @@ export default function QuotationSubmit() {
                             min="0"
                             step="0.01"
                             value={item.unit_price}
-                            onChange={(e) => handleItemChange(i, 'unit_price', e.target.value)}
+                            disabled={!canEdit}
+                            onChange={(event) => handleItemChange(index, 'unit_price', event.target.value)}
                             placeholder="0.00"
                           />
                         </td>
@@ -166,11 +205,12 @@ export default function QuotationSubmit() {
                             type="number"
                             min="1"
                             value={item.delivery_days}
-                            onChange={(e) => handleItemChange(i, 'delivery_days', e.target.value)}
+                            disabled={!canEdit}
+                            onChange={(event) => handleItemChange(index, 'delivery_days', event.target.value)}
                             placeholder="Days"
                           />
                         </td>
-                        <td className="text-end fw-semibold">₹{lineTotal.toFixed(2)}</td>
+                        <td className="text-end fw-semibold">Rs. {lineTotal.toFixed(2)}</td>
                       </tr>
                     );
                   })}
@@ -187,8 +227,8 @@ export default function QuotationSubmit() {
                       max="100"
                       step="0.01"
                       value={taxPercent}
-                      onChange={(e) => setTaxPercent(e.target.value)}
-                      placeholder="e.g. 18"
+                      disabled={!canEdit}
+                      onChange={(event) => setTaxPercent(event.target.value)}
                     />
                   </Form.Group>
                 </div>
@@ -199,8 +239,9 @@ export default function QuotationSubmit() {
                       as="textarea"
                       rows={2}
                       value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Optional notes or payment terms…"
+                      disabled={!canEdit}
+                      onChange={(event) => setNotes(event.target.value)}
+                      placeholder="Optional notes or payment terms"
                     />
                   </Form.Group>
                 </div>
@@ -209,42 +250,33 @@ export default function QuotationSubmit() {
           </Card>
         </div>
 
-        {/* Right — live summary */}
         <div className="col-lg-4">
-          <Card style={{ borderColor: 'var(--accent)', background: 'var(--accent-light)' }}>
+          <Card className="stat-card" style={{ borderColor: 'var(--accent)', background: 'var(--accent-light)' }}>
             <Card.Body>
               <h6 className="mb-3">Quotation Summary</h6>
               <div className="d-flex justify-content-between mb-2">
                 <span className="text-muted-small">Subtotal</span>
-                <strong>₹{subtotal.toFixed(2)}</strong>
+                <strong>Rs. {subtotal.toFixed(2)}</strong>
               </div>
               <div className="d-flex justify-content-between mb-2">
                 <span className="text-muted-small">GST ({taxPercent || 0}%)</span>
-                <strong>₹{taxAmount.toFixed(2)}</strong>
+                <strong>Rs. {taxAmount.toFixed(2)}</strong>
               </div>
               <hr />
               <div className="d-flex justify-content-between">
                 <span className="fw-bold">Grand Total</span>
                 <span className="fw-bold fs-5" style={{ color: 'var(--accent-dark)' }}>
-                  ₹{grandTotal.toFixed(2)}
+                  Rs. {grandTotal.toFixed(2)}
                 </span>
               </div>
             </Card.Body>
           </Card>
 
           <div className="mt-3 d-grid gap-2">
-            <Button
-              variant="primary"
-              disabled={saving}
-              onClick={() => handleSubmit('Submitted')}
-            >
+            <Button variant="primary" disabled={saving || !canEdit} onClick={() => handleSubmit('Submitted')}>
               {saving ? <Spinner size="sm" animation="border" /> : 'Submit Quotation'}
             </Button>
-            <Button
-              variant="outline-secondary"
-              disabled={saving}
-              onClick={() => handleSubmit('Draft')}
-            >
+            <Button variant="outline-secondary" disabled={saving || !canEdit} onClick={() => handleSubmit('Draft')}>
               Save as Draft
             </Button>
           </div>

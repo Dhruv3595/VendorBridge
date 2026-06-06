@@ -109,16 +109,29 @@ export default function RFQForm() {
           unit: item.unit
         }));
 
+      const targetStatus = status === 'Published' ? 'Draft' : status;
       const response = await fetch('/api/rfqs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ ...form, items: cleanedItems, status })
+        body: JSON.stringify({ ...form, items: cleanedItems, status: targetStatus })
       });
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.message || 'Could not save RFQ');
+      }
+
+      if (status === 'Published') {
+        const publishResponse = await fetch(`/api/rfqs/${data.id}/publish`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        const publishData = await publishResponse.json();
+
+        if (!publishResponse.ok) {
+          throw new Error(publishData.message || 'RFQ saved but could not be published');
+        }
       }
 
       navigate('/rfqs');
@@ -247,7 +260,7 @@ export default function RFQForm() {
           )}
           {currentStep === 3 && (
             <>
-              <Button type="button" variant="primary" onClick={() => submitRfq('Active')}>
+              <Button type="button" variant="primary" onClick={() => submitRfq('Published')}>
                 Save & Send to Vendors
               </Button>
               <Button type="button" variant="outline-secondary" onClick={() => submitRfq('Draft')}>

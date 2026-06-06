@@ -12,13 +12,13 @@ function dateOnly(value) {
 }
 
 function statusLabel(status) {
-  if (status === 'pending_payment') return 'Pending Payment';
-  if (status === 'paid') return 'Paid';
   return status || '-';
 }
 
 function statusVariant(status) {
-  if (status === 'paid') return 'success';
+  if (status === 'Paid') return 'success';
+  if (status === 'Overdue') return 'danger';
+  if (status === 'Sent') return 'primary';
   return 'warning';
 }
 
@@ -63,7 +63,7 @@ export default function Invoices() {
             <Table responsive hover className="mb-0">
               <thead>
                 <tr>
-                  <th>Invoice ID</th>
+                  <th>Invoice</th>
                   <th>PO Number</th>
                   <th>Vendor</th>
                   <th>Date</th>
@@ -84,7 +84,7 @@ export default function Invoices() {
                     style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/invoices/${invoice.id}`)}
                   >
-                    <td>{invoice.id}</td>
+                    <td>{invoice.invoice_number || `INV-${invoice.id}`}</td>
                     <td>{invoice.po_number || '-'}</td>
                     <td>{invoice.vendor_name || '-'}</td>
                     <td>{dateOnly(invoice.invoice_date)}</td>

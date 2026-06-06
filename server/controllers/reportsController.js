@@ -24,6 +24,12 @@ async function getStats(req, res) {
     const vendors = await pool.query('SELECT COUNT(*)::int AS count FROM vendors');
     const rfqs = await pool.query('SELECT COUNT(*)::int AS count FROM rfqs');
     const pos = await pool.query('SELECT COUNT(*)::int AS count FROM purchase_orders');
+    const completedPos = await pool.query(
+      "SELECT COUNT(*)::int AS count FROM purchase_orders WHERE status = 'Completed'"
+    );
+    const overdueInvoices = await pool.query(
+      "SELECT COUNT(*)::int AS count FROM invoices WHERE due_date < CURRENT_DATE AND status <> 'Paid'"
+    );
     const invoices = await pool.query(
       `SELECT COALESCE(SUM(invoice_total), 0) AS total
        FROM (
@@ -38,13 +44,38 @@ async function getStats(req, res) {
 
     res.json({
       total_vendors: vendors.rows[0].count,
+      active_vendors: vendors.rows[0].count,
       total_rfqs: rfqs.rows[0].count,
       total_pos: pos.rows[0].count,
-      total_invoice_amount: toNumber(invoices.rows[0].total)
+      total_invoice_amount: toNumber(invoices.rows[0].total),
+      po_fulfillment_percent: pos.rows[0].count
+        ? Math.round((completedPos.rows[0].count / pos.rows[0].count) * 100)
+        : 0,
+      overdue_invoices: overdueInvoices.rows[0].count
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Could not load report stats' });
+  }
+}
+
+async function getSpendByCategory(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT COALESCE(r.category, 'Uncategorized') AS category,
+              COALESCE(SUM(qi.quantity * qi.unit_price), 0) * 1.18 AS total
+       FROM purchase_orders po
+       LEFT JOIN rfqs r ON po.rfq_id = r.id
+       LEFT JOIN quotations q ON po.quotation_id = q.id
+       LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
+       GROUP BY COALESCE(r.category, 'Uncategorized')
+       ORDER BY total DESC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Could not load spend by category' });
   }
 }
 
@@ -158,6 +189,7 @@ async function exportPurchaseOrders(req, res) {
 module.exports = {
   getStats,
   getMonthlySpend,
+  getSpendByCategory,
   getTopVendors,
   exportPurchaseOrders
 };

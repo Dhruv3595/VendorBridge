@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Alert, Badge, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function money(value) {
   return `Rs. ${Number(value || 0).toFixed(2)}`;
@@ -12,18 +13,19 @@ function dateOnly(value) {
 }
 
 function statusLabel(status) {
-  if (status === 'pending_payment') return 'Pending Payment';
-  if (status === 'paid') return 'Paid';
   return status || '-';
 }
 
 function statusVariant(status) {
-  if (status === 'paid') return 'success';
+  if (status === 'Paid') return 'success';
+  if (status === 'Overdue') return 'danger';
+  if (status === 'Sent') return 'primary';
   return 'warning';
 }
 
 export default function InvoiceDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -119,7 +121,7 @@ export default function InvoiceDetail() {
         <Card.Body>
           <div className="d-flex flex-wrap justify-content-between gap-3 mb-4">
             <div>
-              <h3 className="mb-1">Invoice #{invoice.id}</h3>
+              <h3 className="mb-1">{invoice.invoice_number || `Invoice #${invoice.id}`}</h3>
               <div className="text-muted-small">PO Number: {invoice.po_number || '-'}</div>
             </div>
             <div className="text-md-end">
@@ -210,13 +212,17 @@ export default function InvoiceDetail() {
         <Button variant="outline-secondary" onClick={() => window.print()}>
           Print
         </Button>
-        <Button variant="outline-primary" onClick={emailInvoice} disabled={acting}>
-          Email Invoice
-        </Button>
-        {invoice.status === 'pending_payment' && (
-          <Button variant="success" onClick={markPaid} disabled={acting}>
-            Mark as Paid
-          </Button>
+        {user?.role === 'Officer' && (
+          <>
+            <Button variant="outline-primary" onClick={emailInvoice} disabled={acting}>
+              Email Invoice
+            </Button>
+            {invoice.status === 'Pending Payment' && (
+              <Button variant="success" onClick={markPaid} disabled={acting}>
+                Mark as Paid
+              </Button>
+            )}
+          </>
         )}
       </div>
     </>

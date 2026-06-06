@@ -4,6 +4,7 @@ const session = require('express-session');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 const dashboardRoutes = require('./routes/dashboard');
 const vendorRoutes = require('./routes/vendors');
 const rfqRoutes = require('./routes/rfqs');
@@ -39,6 +40,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/users', isLoggedIn, userRoutes);
 app.use('/api/dashboard', isLoggedIn, dashboardRoutes);
 app.use('/api/vendors', isLoggedIn, vendorRoutes);
 app.use('/api/rfqs', isLoggedIn, rfqRoutes);

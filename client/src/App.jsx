@@ -5,11 +5,13 @@ import Layout from './components/Layout.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
+import Users from './pages/Users.jsx';
 import Vendors from './pages/Vendors.jsx';
 import VendorForm from './pages/VendorForm.jsx';
 import VendorDetail from './pages/VendorDetail.jsx';
 import RFQs from './pages/RFQs.jsx';
 import RFQForm from './pages/RFQForm.jsx';
+import Quotations from './pages/Quotations.jsx';
 import QuotationSubmit from './pages/QuotationSubmit.jsx';
 import QuotationCompare from './pages/QuotationCompare.jsx';
 import Approvals from './pages/Approvals.jsx';
@@ -88,6 +90,14 @@ export default function App() {
             )}
           />
         ))}
+        <Route
+          path="/users"
+          element={(
+            <ProtectedRoute title="Users" roles={['Admin']}>
+              <Users />
+            </ProtectedRoute>
+          )}
+        />
         <Route
           path="/rfqs"
           element={(
@@ -224,17 +234,14 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
-        {['quotations'].map((path) => (
-          <Route
-            key={path}
-            path={`/${path}`}
-            element={(
-              <ProtectedRoute title={path.split('-').map((word) => word[0].toUpperCase() + word.slice(1)).join(' ')}>
-                <PlaceholderPage title={path.split('-').map((word) => word[0].toUpperCase() + word.slice(1)).join(' ')} />
-              </ProtectedRoute>
-            )}
-          />
-        ))}
+        <Route
+          path="/quotations"
+          element={(
+            <ProtectedRoute title="Quotations">
+              <Quotations />
+            </ProtectedRoute>
+          )}
+        />
         <Route path="/" element={<RootRedirect />} />
         <Route path="*" element={<RootRedirect />} />
       </Routes>
