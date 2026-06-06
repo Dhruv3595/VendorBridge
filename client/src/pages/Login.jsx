@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Card, Form } from 'react-bootstrap';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { dashboardPathForRole } from '../sidebarItems.js';
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -12,7 +13,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={dashboardPathForRole(user.role)} replace />;
   }
 
   async function handleSubmit(event) {
@@ -21,8 +22,8 @@ export default function Login() {
     setSubmitting(true);
 
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const loggedInUser = await login(email, password);
+      navigate(dashboardPathForRole(loggedInUser.role));
     } catch (err) {
       setError(err.message);
     } finally {

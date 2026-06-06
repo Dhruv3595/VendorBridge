@@ -49,6 +49,15 @@ async function addLog(action, description, userId, client) {
 }
 
 async function loadInvoiceDetail(id) {
+  return loadInvoiceDetailForUser(id);
+}
+
+async function loadInvoiceDetailForUser(id, user) {
+  const values = [id];
+  const scope = user?.role === 'Vendor'
+    ? ` AND v.id = $${values.push(user.vendorId || 0)}`
+    : '';
+
   const invoiceResult = await pool.query(
     `SELECT i.*,
             po.po_number,
@@ -66,8 +75,8 @@ async function loadInvoiceDetail(id) {
      LEFT JOIN rfqs r ON po.rfq_id = r.id
      LEFT JOIN quotations q ON po.quotation_id = q.id
      LEFT JOIN vendors v ON q.vendor_id = v.id
-     WHERE i.id = $1`,
-    [id]
+     WHERE i.id = $1 ${scope}`,
+    values
   );
 
   if (invoiceResult.rows.length === 0) {
@@ -93,6 +102,11 @@ async function loadInvoiceDetail(id) {
 }
 
 async function getInvoices(req, res) {
+  const values = [];
+  const scope = req.user.role === 'Vendor'
+    ? `WHERE q.vendor_id = $${values.push(req.user.vendorId || 0)}`
+    : '';
+
   try {
     const result = await pool.query(
       `SELECT i.id,
@@ -112,8 +126,10 @@ async function getInvoices(req, res) {
        LEFT JOIN quotations q ON po.quotation_id = q.id
        LEFT JOIN vendors v ON q.vendor_id = v.id
        LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
+       ${scope}
        GROUP BY i.id, po.po_number, v.name
-       ORDER BY i.created_at DESC`
+       ORDER BY i.created_at DESC`,
+      values
     );
 
     res.json(result.rows);
@@ -125,7 +141,7 @@ async function getInvoices(req, res) {
 
 async function getInvoiceById(req, res) {
   try {
-    const invoice = await loadInvoiceDetail(req.params.id);
+    const invoice = await loadInvoiceDetailForUser(req.params.id, req.user);
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
@@ -161,18 +177,24 @@ async function createInvoice(req, res) {
     }
 
     const invoiceResult = await client.query(
-      `INSERT INTO invoices (po_id, invoice_date, due_date, status)
-       VALUES ($1, $2, $3, 'pending_payment')
+      `INSERT INTO invoices (po_id, invoice_number, invoice_date, due_date, status)
+       VALUES ($1, 'INV-TEMP-' || $1::TEXT, $2, $3, 'Pending Payment')
        RETURNING *`,
       [po_id, invoice_date || null, due_date || null]
     );
     const invoice = invoiceResult.rows[0];
     const po = poResult.rows[0];
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoice.id).padStart(5, '0')}`;
+
+    await client.query(
+      'UPDATE invoices SET invoice_number = $1 WHERE id = $2',
+      [invoiceNumber, invoice.id]
+    );
 
     await addLog(
-      'Invoice created',
-      `Invoice #${invoice.id} created for ${po.po_number}.`,
-      req.session?.user?.id,
+      'Invoice generated',
+      `Invoice ${invoiceNumber} generated for ${po.po_number}.`,
+      req.user.id,
       client
     );
 
@@ -193,7 +215,7 @@ async function markInvoicePaid(req, res) {
   try {
     const result = await pool.query(
       `UPDATE invoices
-       SET status = 'paid'
+       SET status = 'Paid'
        WHERE id = $1
        RETURNING *`,
       [req.params.id]
@@ -203,7 +225,7 @@ async function markInvoicePaid(req, res) {
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
-    await addLog('Invoice paid', `Invoice #${req.params.id} marked as paid.`, req.session?.user?.id);
+    await addLog('Invoice paid', `Invoice #${req.params.id} marked as paid.`, req.user.id);
 
     const detail = await loadInvoiceDetail(req.params.id);
     res.json(detail);
@@ -282,7 +304,7 @@ function buildInvoicePdf(invoice) {
 
 async function getInvoicePdf(req, res) {
   try {
-    const invoice = await loadInvoiceDetail(req.params.id);
+    const invoice = await loadInvoiceDetailForUser(req.params.id, req.user);
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
@@ -333,7 +355,7 @@ async function emailInvoice(req, res) {
       ]
     });
 
-    await addLog('Invoice emailed', `Invoice #${invoice.id} emailed to ${invoice.vendor.email || 'demo inbox'}.`, req.session?.user?.id);
+    await addLog('Invoice emailed', `Invoice #${invoice.id} emailed to ${invoice.vendor.email || 'demo inbox'}.`, req.user.id);
 
     res.json({
       message: 'Invoice email sent',

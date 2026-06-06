@@ -1,5 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { Spinner } from 'react-bootstrap';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Alert, Card, Spinner } from 'react-bootstrap';
 import { useAuth } from './context/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -20,9 +20,24 @@ import Invoices from './pages/Invoices.jsx';
 import InvoiceDetail from './pages/InvoiceDetail.jsx';
 import Activity from './pages/Activity.jsx';
 import Reports from './pages/Reports.jsx';
+import { canAccessPath, dashboardPathForRole } from './sidebarItems.js';
 
-function ProtectedRoute({ title, children }) {
+function UnauthorizedPage() {
+  return (
+    <Card className="stat-card shadow-sm">
+      <Card.Body>
+        <h4>403 Unauthorized</h4>
+        <Alert variant="warning" className="mb-0">
+          Your role does not have permission to access this ERP module.
+        </Alert>
+      </Card.Body>
+    </Card>
+  );
+}
+
+function ProtectedRoute({ title, roles, children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -34,6 +49,14 @@ function ProtectedRoute({ title, children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if ((roles && !roles.includes(user.role)) || !canAccessPath(user.role, location.pathname)) {
+    return (
+      <Layout title="Unauthorized">
+        <UnauthorizedPage />
+      </Layout>
+    );
   }
 
   return <Layout title={title}>{children}</Layout>;
@@ -54,6 +77,17 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        {['admin', 'officer', 'vendor', 'manager'].map((rolePath) => (
+          <Route
+            key={rolePath}
+            path={`/${rolePath}/dashboard`}
+            element={(
+              <ProtectedRoute title="Dashboard">
+                <Dashboard />
+              </ProtectedRoute>
+            )}
+          />
+        ))}
         <Route
           path="/rfqs"
           element={(
@@ -65,7 +99,7 @@ export default function App() {
         <Route
           path="/rfqs/new"
           element={(
-            <ProtectedRoute title="New RFQ">
+            <ProtectedRoute title="New RFQ" roles={['Officer']}>
               <RFQForm />
             </ProtectedRoute>
           )}
@@ -113,7 +147,7 @@ export default function App() {
         <Route
           path="/vendors/add"
           element={(
-            <ProtectedRoute title="Add Vendor">
+            <ProtectedRoute title="Add Vendor" roles={['Admin', 'Officer']}>
               <VendorForm />
             </ProtectedRoute>
           )}
@@ -129,7 +163,7 @@ export default function App() {
         <Route
           path="/vendors/:id/edit"
           element={(
-            <ProtectedRoute title="Edit Vendor">
+            <ProtectedRoute title="Edit Vendor" roles={['Admin', 'Officer']}>
               <VendorForm />
             </ProtectedRoute>
           )}
@@ -177,7 +211,7 @@ export default function App() {
         <Route
           path="/reports"
           element={(
-            <ProtectedRoute title="Reports">
+            <ProtectedRoute title="Reports" roles={['Admin', 'Officer']}>
               <Reports />
             </ProtectedRoute>
           )}
@@ -186,7 +220,7 @@ export default function App() {
           path="/dashboard"
           element={(
             <ProtectedRoute title="Dashboard">
-              <Dashboard />
+              <DashboardRedirect />
             </ProtectedRoute>
           )}
         />
@@ -201,9 +235,28 @@ export default function App() {
             )}
           />
         ))}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="*" element={<RootRedirect />} />
       </Routes>
     </BrowserRouter>
   );
+}
+
+function DashboardRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={dashboardPathForRole(user?.role)} replace />;
+}
+
+function RootRedirect() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <Spinner animation="border" />
+      </div>
+    );
+  }
+
+  return <Navigate to={user ? dashboardPathForRole(user.role) : '/login'} replace />;
 }

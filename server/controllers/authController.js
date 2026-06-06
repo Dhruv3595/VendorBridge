@@ -7,6 +7,8 @@ function cleanUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    organizationId: user.organization_id,
+    vendorId: user.vendor_id,
     phone: user.phone,
     country: user.country,
     photo_url: user.photo_url
@@ -43,7 +45,7 @@ async function login(req, res) {
 }
 
 async function signup(req, res) {
-  const { firstName, lastName, email, phone, role, country, password } = req.body;
+  const { firstName, lastName, email, phone, role, country, password, vendorId } = req.body;
   const name = `${firstName || ''} ${lastName || ''}`.trim();
 
   if (!name || !email || !password || !role) {
@@ -54,13 +56,13 @@ async function signup(req, res) {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, phone, country)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, name, email, role, phone, country, photo_url`,
-      [name, email, passwordHash, role, phone, country]
+      `INSERT INTO users (name, email, password_hash, role, phone, country, vendor_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, name, email, role, organization_id, vendor_id, phone, country, photo_url`,
+      [name, email, passwordHash, role, phone, country, role === 'Vendor' ? vendorId || null : null]
     );
 
-    req.session.user = result.rows[0];
+    req.session.user = cleanUser(result.rows[0]);
     res.status(201).json({ user: req.session.user });
   } catch (error) {
     console.error(error);

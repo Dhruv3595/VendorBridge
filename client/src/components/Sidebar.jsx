@@ -1,28 +1,18 @@
 import { Nav } from 'react-bootstrap';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-
-const links = [
-  { path: '/dashboard', label: 'Dashboard' },
-  { path: '/vendors', label: 'Vendors' },
-  { path: '/rfqs', label: 'RFQs' },
-  { path: '/quotations', label: 'Quotations' },
-  { path: '/approvals', label: 'Approvals' },
-  { path: '/purchase-orders', label: 'Purchase Orders' },
-  { path: '/invoices', label: 'Invoices' },
-  { path: '/reports', label: 'Reports' },
-  { path: '/activity', label: 'Activity' }
-];
+import { sidebarItemsForRole } from '../sidebarItems.js';
 
 export default function Sidebar() {
   const { user } = useAuth();
+  const links = sidebarItemsForRole(user?.role);
 
   return (
     <aside className="sidebar d-flex flex-column">
       <h4 className="mb-4">VendorBridge</h4>
       <Nav className="flex-column">
         {links.map((link) => (
-          <Nav.Link key={link.path} as={NavLink} to={link.path}>
+          <Nav.Link key={link.path} as={NavLink} to={link.path} end={link.path.includes('/dashboard')}>
             {link.label}
           </Nav.Link>
         ))}

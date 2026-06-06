@@ -13,6 +13,7 @@ const purchaseOrderRoutes = require('./routes/purchaseOrders');
 const invoiceRoutes = require('./routes/invoices');
 const activityRoutes = require('./routes/activity');
 const reportRoutes = require('./routes/reports');
+const { isLoggedIn } = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,15 +39,15 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/vendors', vendorRoutes);
-app.use('/api/rfqs', rfqRoutes);
-app.use('/api/quotations', quotationRoutes);
-app.use('/api/approvals', approvalRoutes);
-app.use('/api/purchase-orders', purchaseOrderRoutes);
-app.use('/api/invoices', invoiceRoutes);
-app.use('/api/activity', activityRoutes);
-app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', isLoggedIn, dashboardRoutes);
+app.use('/api/vendors', isLoggedIn, vendorRoutes);
+app.use('/api/rfqs', isLoggedIn, rfqRoutes);
+app.use('/api/quotations', isLoggedIn, quotationRoutes);
+app.use('/api/approvals', isLoggedIn, approvalRoutes);
+app.use('/api/purchase-orders', isLoggedIn, purchaseOrderRoutes);
+app.use('/api/invoices', isLoggedIn, invoiceRoutes);
+app.use('/api/activity', isLoggedIn, activityRoutes);
+app.use('/api/reports', isLoggedIn, reportRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

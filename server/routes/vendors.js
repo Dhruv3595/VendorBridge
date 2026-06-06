@@ -1,12 +1,13 @@
 const express = require('express');
 const vendorsController = require('../controllers/vendorsController');
+const { hasRole } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.get('/', vendorsController.getVendors);
-router.get('/:id', vendorsController.getVendorById);
-router.post('/', vendorsController.createVendor);
-router.put('/:id', vendorsController.updateVendor);
-router.patch('/:id/status', vendorsController.updateVendorStatus);
+router.get('/', hasRole('Admin', 'Officer'), vendorsController.getVendors);
+router.get('/:id', hasRole('Admin', 'Officer'), vendorsController.getVendorById);
+router.post('/', hasRole('Admin', 'Officer'), vendorsController.createVendor);
+router.put('/:id', hasRole('Admin', 'Officer'), vendorsController.updateVendor);
+router.patch('/:id/status', hasRole('Admin', 'Officer'), vendorsController.updateVendorStatus);
 
 module.exports = router;

@@ -11,6 +11,11 @@ function toNumber(value) {
 }
 
 async function getPurchaseOrders(req, res) {
+  const values = [];
+  const scope = req.user.role === 'Vendor'
+    ? `WHERE q.vendor_id = $${values.push(req.user.vendorId || 0)}`
+    : '';
+
   try {
     const result = await pool.query(
       `SELECT po.id,
@@ -28,8 +33,10 @@ async function getPurchaseOrders(req, res) {
        LEFT JOIN quotations q ON po.quotation_id = q.id
        LEFT JOIN vendors v ON q.vendor_id = v.id
        LEFT JOIN quotation_items qi ON qi.quotation_id = q.id
+       ${scope}
        GROUP BY po.id, r.title, v.id, v.name
-       ORDER BY po.created_at DESC`
+       ORDER BY po.created_at DESC`,
+      values
     );
 
     res.json(result.rows);
@@ -40,6 +47,11 @@ async function getPurchaseOrders(req, res) {
 }
 
 async function getPurchaseOrderById(req, res) {
+  const values = [req.params.id];
+  const scope = req.user.role === 'Vendor'
+    ? ` AND q.vendor_id = $${values.push(req.user.vendorId || 0)}`
+    : '';
+
   try {
     const poResult = await pool.query(
       `SELECT po.*,
@@ -57,8 +69,8 @@ async function getPurchaseOrderById(req, res) {
        LEFT JOIN rfqs r ON po.rfq_id = r.id
        LEFT JOIN quotations q ON po.quotation_id = q.id
        LEFT JOIN vendors v ON q.vendor_id = v.id
-       WHERE po.id = $1`,
-      [req.params.id]
+       WHERE po.id = $1 ${scope}`,
+      values
     );
 
     if (poResult.rows.length === 0) {

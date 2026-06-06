@@ -15,7 +15,9 @@ CREATE TABLE users (
   name VARCHAR(120) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role VARCHAR(30) NOT NULL CHECK (role IN ('Admin', 'Officer', 'Vendor')),
+  role VARCHAR(30) NOT NULL CHECK (role IN ('Admin', 'Officer', 'Vendor', 'Manager')),
+  organization_id INTEGER DEFAULT 1,
+  vendor_id INTEGER,
   phone VARCHAR(30),
   country VARCHAR(80),
   photo_url TEXT,
@@ -24,6 +26,7 @@ CREATE TABLE users (
 
 CREATE TABLE vendors (
   id SERIAL PRIMARY KEY,
+  organization_id INTEGER DEFAULT 1,
   name VARCHAR(150) NOT NULL,
   category VARCHAR(100),
   gst_number VARCHAR(50),
@@ -37,6 +40,7 @@ CREATE TABLE vendors (
 
 CREATE TABLE rfqs (
   id SERIAL PRIMARY KEY,
+  organization_id INTEGER DEFAULT 1,
   title VARCHAR(180) NOT NULL,
   category VARCHAR(100),
   deadline DATE,
@@ -70,6 +74,9 @@ CREATE TABLE quotations (
   submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX quotations_one_vendor_per_rfq
+ON quotations (rfq_id, vendor_id);
+
 CREATE TABLE quotation_items (
   id SERIAL PRIMARY KEY,
   quotation_id INTEGER NOT NULL REFERENCES quotations(id) ON DELETE CASCADE,
@@ -91,24 +98,28 @@ CREATE TABLE approvals (
 
 CREATE TABLE purchase_orders (
   id SERIAL PRIMARY KEY,
+  organization_id INTEGER DEFAULT 1,
   rfq_id INTEGER REFERENCES rfqs(id) ON DELETE SET NULL,
   quotation_id INTEGER REFERENCES quotations(id) ON DELETE SET NULL,
   po_number VARCHAR(50) UNIQUE NOT NULL,
-  status VARCHAR(30) DEFAULT 'Created',
+  status VARCHAR(30) DEFAULT 'Generated',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE invoices (
   id SERIAL PRIMARY KEY,
+  organization_id INTEGER DEFAULT 1,
   po_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  invoice_number VARCHAR(50) UNIQUE,
   invoice_date DATE,
   due_date DATE,
-  status VARCHAR(30) DEFAULT 'Pending',
+  status VARCHAR(30) DEFAULT 'Pending Payment',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE activity_logs (
   id SERIAL PRIMARY KEY,
+  organization_id INTEGER DEFAULT 1,
   action VARCHAR(120) NOT NULL,
   description TEXT,
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
