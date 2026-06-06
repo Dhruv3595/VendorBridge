@@ -14,6 +14,8 @@ import QuotationSubmit from './pages/QuotationSubmit.jsx';
 import QuotationCompare from './pages/QuotationCompare.jsx';
 import Approvals from './pages/Approvals.jsx';
 import ApprovalDetail from './pages/ApprovalDetail.jsx';
+import PurchaseOrders from './pages/PurchaseOrders.jsx';
+import PurchaseOrderDetail from './pages/PurchaseOrderDetail.jsx';
 
 function ProtectedRoute({ title, children }) {
   const { user, loading } = useAuth();
@@ -129,6 +131,22 @@ export default function App() {
           )}
         />
         <Route
+          path="/purchase-orders"
+          element={(
+            <ProtectedRoute title="Purchase Orders">
+              <PurchaseOrders />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/purchase-orders/:id"
+          element={(
+            <ProtectedRoute title="Purchase Order Detail">
+              <PurchaseOrderDetail />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/dashboard"
           element={(
             <ProtectedRoute title="Dashboard">
@@ -136,7 +154,7 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
-        {['quotations', 'purchase-orders', 'invoices', 'reports', 'activity'].map((path) => (
+        {['quotations', 'invoices', 'reports', 'activity'].map((path) => (
           <Route
             key={path}
             path={`/${path}`}

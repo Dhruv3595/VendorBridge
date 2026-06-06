@@ -9,6 +9,7 @@ const vendorRoutes = require('./routes/vendors');
 const rfqRoutes = require('./routes/rfqs');
 const quotationRoutes = require('./routes/quotations');
 const approvalRoutes = require('./routes/approvals');
+const purchaseOrderRoutes = require('./routes/purchaseOrders');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,6 +40,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/rfqs', rfqRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/approvals', approvalRoutes);
+app.use('/api/purchase-orders', purchaseOrderRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
