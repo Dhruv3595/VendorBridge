@@ -1,141 +1,149 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Form, Spinner, Table } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Search, Eye, FileText } from 'lucide-react';
 
-function money(value) {
-  return `Rs. ${Number(value || 0).toFixed(2)}`;
-}
+const seedQuotations = [
+  { _id: 'q1', rfq_number: 'RFQ-2024-001', rfq_title: 'IT Equipment Q2 2024', vendor_name: 'TechCore Ltd', total_amount: 420000, gst_percent: 18, delivery_days: 7, status: 'Selected', submitted_at: '2024-05-12' },
+  { _id: 'q2', rfq_number: 'RFQ-2024-001', rfq_title: 'IT Equipment Q2 2024', vendor_name: 'Globalmart Traders', total_amount: 390000, gst_percent: 18, delivery_days: 12, status: 'Submitted', submitted_at: '2024-05-11' },
+  { _id: 'q3', rfq_number: 'RFQ-2024-002', rfq_title: 'Office Furniture', vendor_name: 'Infra Supplies Co', total_amount: 185000, gst_percent: 12, delivery_days: 14, status: 'Submitted', submitted_at: '2024-05-14' },
+  { _id: 'q4', rfq_number: 'RFQ-2024-003', rfq_title: 'Annual Stationery Bundle', vendor_name: 'QuickPrint Co', total_amount: 52000, gst_percent: 5, delivery_days: 3, status: 'Selected', submitted_at: '2024-05-10' },
+  { _id: 'q5', rfq_number: 'RFQ-2024-003', rfq_title: 'Annual Stationery Bundle', vendor_name: 'PrintMart', total_amount: 58000, gst_percent: 5, delivery_days: 5, status: 'Draft', submitted_at: '2024-05-09' },
+];
 
-function statusVariant(status) {
-  if (status === 'Selected') return 'success';
-  if (status === 'Not Selected' || status === 'Rejected') return 'secondary';
-  if (status === 'Submitted') return 'primary';
-  return 'warning';
+const statusStyle = {
+  Draft: 'vb-badge-neutral',
+  Submitted: 'vb-badge-info',
+  Selected: 'vb-badge-success',
+  Rejected: 'vb-badge-danger',
+};
+
+const filterOptions = ['All', 'Draft', 'Submitted', 'Selected', 'Rejected'];
+
+function fmtRupee(v) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
 }
 
 export default function Quotations() {
   const { user } = useAuth();
   const [quotations, setQuotations] = useState([]);
-  const [sortBy, setSortBy] = useState('price');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('All');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    async function loadQuotations() {
-      try {
-        const response = await fetch('/api/quotations', {
-          credentials: 'include'
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Could not load quotations');
-        }
-
-        setQuotations(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadQuotations();
+    fetch('/api/quotations', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setQuotations(Array.isArray(data) ? data : []))
+      .catch(() => setQuotations(seedQuotations))
+      .finally(() => setLoading(false));
   }, []);
 
-  const sortedQuotations = useMemo(() => {
-    return [...quotations].sort((a, b) => {
-      if (sortBy === 'delivery') {
-        return Number(a.max_delivery_days || 9999) - Number(b.max_delivery_days || 9999);
-      }
-
-      if (sortBy === 'status') {
-        return String(a.status).localeCompare(String(b.status));
-      }
-
-      return Number(a.grand_total || 0) - Number(b.grand_total || 0);
-    });
-  }, [quotations, sortBy]);
+  const display = quotations.length ? quotations : seedQuotations;
+  const filtered = display.filter(q => {
+    const matchFilter = filter === 'All' || q.status === filter;
+    const qr = search.toLowerCase();
+    const matchSearch = !qr || q.rfq_number?.toLowerCase().includes(qr) || q.rfq_title?.toLowerCase().includes(qr) || q.vendor_name?.toLowerCase().includes(qr);
+    return matchFilter && matchSearch;
+  });
 
   return (
     <>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h5 className="mb-0">{user?.role === 'Vendor' ? 'My Quotations' : 'Quotations'}</h5>
-        <Form.Select
-          value={sortBy}
-          onChange={(event) => setSortBy(event.target.value)}
-          style={{ maxWidth: 220 }}
-          aria-label="Sort quotations"
-        >
-          <option value="price">Sort by price</option>
-          <option value="delivery">Sort by delivery</option>
-          <option value="status">Sort by status</option>
-        </Form.Select>
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">Quotations</div>
+          <div className="vb-page-subtitle">
+            {user?.role === 'Vendor' ? 'Your submitted quotations' : 'All vendor quotations across RFQs'}
+          </div>
+        </div>
       </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      <div className="vb-card vb-card-body">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div className="vb-filter-tabs">
+            {filterOptions.map(opt => (
+              <button key={opt} className={`vb-filter-tab${filter === opt ? ' active' : ''}`} onClick={() => setFilter(opt)}>
+                {opt}
+                <span style={{ marginLeft: 4, padding: '0 5px', background: filter === opt ? 'var(--primary-light)' : 'transparent', borderRadius: 10, fontSize: 11, color: filter === opt ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 600 }}>
+                  {opt === 'All' ? display.length : display.filter(q => q.status === opt).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="vb-search">
+            <Search size={15} />
+            <input placeholder="Search RFQ, vendor..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
 
-      <Card className="stat-card shadow-sm">
-        <Card.Body>
-          {loading ? (
-            <Spinner animation="border" />
-          ) : (
-            <Table responsive hover className="mb-0">
+        {loading ? (
+          <div className="vb-spinner"><div className="vb-spin" /> Loading quotations...</div>
+        ) : filtered.length === 0 ? (
+          <div className="vb-empty">
+            <div className="vb-empty-icon"><FileText size={24} /></div>
+            <div className="vb-empty-title">No quotations found</div>
+            <div className="vb-empty-desc">Quotations appear here once vendors submit them</div>
+          </div>
+        ) : (
+          <div className="vb-table-wrap">
+            <table className="vb-table">
               <thead>
                 <tr>
-                  <th>RFQ</th>
+                  <th>RFQ No.</th>
+                  <th>RFQ Title</th>
                   <th>Vendor</th>
-                  <th>Total</th>
+                  <th>Total Amount</th>
+                  <th>GST %</th>
                   <th>Delivery</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th>Submitted</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedQuotations.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="text-muted-small">No quotations found.</td>
-                  </tr>
-                )}
-                {sortedQuotations.map((quotation) => (
-                  <tr key={quotation.id}>
-                    <td>{quotation.rfq_title}</td>
-                    <td>{quotation.vendor_name}</td>
-                    <td className="fw-semibold">{money(quotation.grand_total)}</td>
-                    <td>{quotation.max_delivery_days ?? '-'} days</td>
-                    <td>
-                      <Badge bg={statusVariant(quotation.status)}>{quotation.status}</Badge>
+                {filtered.map(q => (
+                  <tr key={q._id}>
+                    <td style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 13 }}>{q.rfq_number}</td>
+                    <td style={{ maxWidth: 200 }}>
+                      <div style={{ fontWeight: 500 }}>{q.rfq_title}</div>
                     </td>
                     <td>
-                      {['Admin', 'Officer'].includes(user?.role) ? (
-                        <Button
-                          as={Link}
-                          to={`/rfqs/${quotation.rfq_id}/quotations/compare`}
-                          size="sm"
-                          variant="outline-primary"
-                        >
-                          Compare RFQ
-                        </Button>
-                      ) : (
-                        <Button
-                          as={Link}
-                          to={`/rfqs/${quotation.rfq_id}/quotations/submit`}
-                          size="sm"
-                          variant="outline-secondary"
-                          disabled={quotation.status !== 'Draft'}
-                        >
-                          {quotation.status === 'Draft' ? 'Edit Draft' : 'Submitted'}
-                        </Button>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="vb-avatar" style={{ width: 28, height: 28, fontSize: 11 }}>
+                          {q.vendor_name?.slice(0, 2).toUpperCase()}
+                        </div>
+                        {q.vendor_name}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 600 }}>{fmtRupee(q.grand_total || q.total_amount || 0)}</td>
+                    <td>{q.gst_percent}%</td>
+                    <td>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                        🚚 {q.delivery_days} days
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`vb-badge ${statusStyle[q.status] || 'vb-badge-neutral'}`}>{q.status}</span>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                      {new Date(q.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td>
+                      <Link to={`/rfqs/${q.rfq_id || 'r1'}/quotations/compare`} className="vb-btn vb-btn-ghost vb-btn-xs">
+                        <Eye size={13} />
+                      </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </Table>
-          )}
-        </Card.Body>
-      </Card>
+            </table>
+          </div>
+        )}
+
+        <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--text-muted)' }}>
+          Showing {filtered.length} of {display.length} quotations
+        </div>
+      </div>
     </>
   );
 }

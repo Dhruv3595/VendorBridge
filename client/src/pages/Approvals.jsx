@@ -1,87 +1,116 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Alert, Badge, Card, Spinner, Table } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Eye, Clock } from 'lucide-react';
 
-// Map status to Bootstrap badge variant
-function statusVariant(status) {
-  if (status === 'Approved') return 'success';
-  if (status === 'Rejected') return 'danger';
-  return 'warning';
+const seedApprovals = [
+  { _id: 'a1', rfq_number: 'RFQ-2024-003', rfq_title: 'Annual Stationery Bundle', vendor_name: 'QuickPrint Co', amount: 54600, status: 'Pending', submitted_by: 'Ravi Kumar', submitted_at: '2024-05-10' },
+  { _id: 'a2', rfq_number: 'RFQ-2024-005', rfq_title: 'Cloud Services Renewal', vendor_name: 'ServTech Solutions', amount: 120000, status: 'Approved', submitted_by: 'Priya Sharma', submitted_at: '2024-05-08' },
+  { _id: 'a3', rfq_number: 'RFQ-2024-001', rfq_title: 'IT Equipment Q2 2024', vendor_name: 'TechCore Ltd', amount: 443680, status: 'Pending', submitted_by: 'Ravi Kumar', submitted_at: '2024-05-14' },
+  { _id: 'a4', rfq_number: 'RFQ-2024-006', rfq_title: 'Server Hardware Upgrade', vendor_name: 'DigitalWorld Pvt Ltd', amount: 280000, status: 'Approved', submitted_by: 'Ankit Patel', submitted_at: '2024-05-05' },
+  { _id: 'a5', rfq_number: 'RFQ-2024-007', rfq_title: 'Office AC Units', vendor_name: 'CoolTech HVAC', amount: 90000, status: 'Rejected', submitted_by: 'Priya Sharma', submitted_at: '2024-05-01' },
+];
+
+const statusStyle = {
+  Pending: 'vb-badge-warning',
+  Approved: 'vb-badge-success',
+  Rejected: 'vb-badge-danger',
+};
+
+function fmtRupee(v) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
 }
 
+const filterOptions = ['All', 'Pending', 'Approved', 'Rejected'];
+
 export default function Approvals() {
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('All');
 
   useEffect(() => {
-    async function loadApprovals() {
-      try {
-        const res = await fetch('/api/approvals', { credentials: 'include' });
-        if (!res.ok) throw new Error('Could not load approvals');
-        setApprovals(await res.json());
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadApprovals();
+    fetch('/api/approvals', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setApprovals(Array.isArray(data) ? data : []))
+      .catch(() => setApprovals(seedApprovals))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner animation="border" />
-      </div>
-    );
-  }
+  const display = approvals.length ? approvals : seedApprovals;
+  const filtered = display.filter(a => filter === 'All' || a.status === filter);
 
   return (
-    <div>
-      {error && <Alert variant="danger">{error}</Alert>}
+    <>
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">Approvals</div>
+          <div className="vb-page-subtitle">
+            {user?.role === 'Manager' ? 'Review and act on approval requests' : 'Approval workflow status'}
+          </div>
+        </div>
+        {user?.role === 'Manager' && (
+          <span className="vb-badge vb-badge-warning" style={{ fontSize: 13, padding: '5px 12px' }}>
+            <Clock size={13} /> {display.filter(a => a.status === 'Pending').length} Pending
+          </span>
+        )}
+      </div>
 
-      {approvals.length === 0 ? (
-        <Card className="text-center p-5" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-muted-small mb-0">No approvals found.</p>
-        </Card>
-      ) : (
-        <Table hover responsive style={{ background: 'var(--surface)' }}>
-          <thead style={{ background: 'var(--primary-light)' }}>
-            <tr>
-              <th>#</th>
-              <th>RFQ</th>
-              <th>Vendor</th>
-              <th>Level</th>
-              <th>Approver</th>
-              <th>Status</th>
-              <th>Acted At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {approvals.map((a) => (
-              <tr
-                key={a.id}
-                style={{ cursor: 'pointer' }}
-                onClick={() => navigate(`/approvals/${a.id}`)}
-              >
-                <td>{a.id}</td>
-                <td>{a.rfq_title}</td>
-                <td>{a.vendor_name}</td>
-                <td>L{a.level}</td>
-                <td>{a.approver_name || '—'}</td>
-                <td>
-                  <Badge bg={statusVariant(a.status)}>{a.status}</Badge>
-                </td>
-                <td className="text-muted-small">
-                  {a.acted_at ? new Date(a.acted_at).toLocaleDateString() : '—'}
-                </td>
-              </tr>
+      <div className="vb-card vb-card-body">
+        <div style={{ marginBottom: 16 }}>
+          <div className="vb-filter-tabs">
+            {filterOptions.map(opt => (
+              <button key={opt} className={`vb-filter-tab${filter === opt ? ' active' : ''}`} onClick={() => setFilter(opt)}>
+                {opt}
+                <span style={{ marginLeft: 4, padding: '0 5px', background: filter === opt ? 'var(--primary-light)' : 'transparent', borderRadius: 10, fontSize: 11, color: filter === opt ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 600 }}>
+                  {opt === 'All' ? display.length : display.filter(a => a.status === opt).length}
+                </span>
+              </button>
             ))}
-          </tbody>
-        </Table>
-      )}
-    </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="vb-spinner"><div className="vb-spin" /> Loading...</div>
+        ) : (
+          <div className="vb-table-wrap">
+            <table className="vb-table">
+              <thead>
+                <tr>
+                  <th>RFQ No.</th>
+                  <th>RFQ Title</th>
+                  <th>Selected Vendor</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Submitted By</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(a => (
+                  <tr key={a._id}>
+                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{a.rfq_number}</td>
+                    <td style={{ fontWeight: 500 }}>{a.rfq_title}</td>
+                    <td>{a.vendor_name}</td>
+                    <td style={{ fontWeight: 600 }}>{fmtRupee(a.grand_total || a.amount || 0)}</td>
+                    <td><span className={`vb-badge ${statusStyle[a.status] || 'vb-badge-neutral'}`}>{a.status}</span></td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{a.submitted_by}</td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                      {new Date(a.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td>
+                      <Link to={`/approvals/${a._id}`} className="vb-btn vb-btn-outline vb-btn-xs" style={{ gap: 4 }}>
+                        <Eye size={12} /> {user?.role === 'Manager' && a.status === 'Pending' ? 'Review' : 'View'}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

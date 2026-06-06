@@ -1,278 +1,292 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { Check, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
-const categories = ['IT', 'Construction', 'Furniture', 'Office Supplies', 'IT Hardware', 'Services', 'Other'];
-const units = ['pcs', 'kg', 'box', 'meter', 'set'];
+const categories = ['IT Hardware', 'Furniture', 'Stationery', 'Logistics', 'Services', 'Electronics', 'Raw Materials'];
+const units = ['Nos', 'Kg', 'Litre', 'Box', 'Set', 'Pair', 'Metre', 'Piece'];
 
-const emptyForm = {
-  title: '',
-  category: 'IT',
-  deadline: '',
-  description: '',
-  items: [{ item_name: '', quantity: 1, unit: 'pcs' }],
-  vendorIds: []
-};
+const STEPS = [
+  { label: 'RFQ Details', desc: 'Basic information' },
+  { label: 'Line Items', desc: 'Items & quantities' },
+  { label: 'Vendor Assignment', desc: 'Assign suppliers' },
+];
+
+const seedVendors = [
+  { _id: 'v1', name: 'TechCore Ltd' },
+  { _id: 'v2', name: 'Infra Supplies Co' },
+  { _id: 'v3', name: 'FastLog Services' },
+  { _id: 'v4', name: 'QuickPrint Co' },
+  { _id: 'v5', name: 'ServTech Solutions' },
+];
+
+function Stepper({ currentStep }) {
+  return (
+    <div className="vb-stepper">
+      {STEPS.map((step, i) => {
+        const done = i < currentStep;
+        const active = i === currentStep;
+        return (
+          <div key={i} className="vb-step">
+            <div className="vb-step-indicator">
+              <div className={`vb-step-circle ${done ? 'done' : active ? 'active' : ''}`}>
+                {done ? <Check size={13} /> : i + 1}
+              </div>
+              <div className={`vb-step-label ${done ? 'done' : active ? 'active' : ''}`}>
+                <div style={{ fontWeight: active ? 600 : 500, fontSize: 13 }}>{step.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>{step.desc}</div>
+              </div>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`vb-step-line ${done ? 'done' : active ? 'active' : ''}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function emptyItem() {
+  return { name: '', quantity: 1, unit: 'Nos', description: '' };
+}
 
 export default function RFQForm() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [form, setForm] = useState(emptyForm);
-  const [vendors, setVendors] = useState([]);
-  const [loadingVendors, setLoadingVendors] = useState(true);
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [vendors, setVendors] = useState(seedVendors);
+  const [selectedVendors, setSelectedVendors] = useState([]);
+
+  const [form, setForm] = useState({
+    title: '', category: '', deadline: '', description: '',
+    items: [emptyItem()],
+  });
 
   useEffect(() => {
-    async function loadVendors() {
-      try {
-        const response = await fetch('/api/vendors?status=Active', {
-          credentials: 'include'
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Could not load vendors');
-        }
-
-        setVendors(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoadingVendors(false);
-      }
-    }
-
-    loadVendors();
+    fetch('/api/vendors', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length) setVendors(data); })
+      .catch(() => {});
   }, []);
 
-  function updateField(event) {
-    setForm({ ...form, [event.target.name]: event.target.value });
+  function updateField(key, val) {
+    setForm(p => ({ ...p, [key]: val }));
   }
 
-  function updateItem(index, field, value) {
-    const items = [...form.items];
-    items[index] = { ...items[index], [field]: value };
-    setForm({ ...form, items });
-  }
-
-  function addItem() {
-    setForm({
-      ...form,
-      items: [...form.items, { item_name: '', quantity: 1, unit: 'pcs' }]
+  function updateItem(idx, key, val) {
+    setForm(p => {
+      const items = [...p.items];
+      items[idx] = { ...items[idx], [key]: val };
+      return { ...p, items };
     });
   }
 
-  function removeItem(index) {
-    const items = form.items.filter((item, itemIndex) => itemIndex !== index);
-    setForm({ ...form, items: items.length ? items : [{ item_name: '', quantity: 1, unit: 'pcs' }] });
+  function addItem() {
+    setForm(p => ({ ...p, items: [...p.items, emptyItem()] }));
   }
 
-  function toggleVendor(vendorId) {
-    const vendorIds = form.vendorIds.includes(vendorId)
-      ? form.vendorIds.filter((id) => id !== vendorId)
-      : [...form.vendorIds, vendorId];
-
-    setForm({ ...form, vendorIds });
+  function removeItem(idx) {
+    setForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }));
   }
 
-  function validate() {
-    if (!form.title.trim()) {
-      return 'RFQ title is required';
-    }
-
-    if (!form.deadline || new Date(form.deadline) <= new Date()) {
-      return 'Deadline must be in the future';
-    }
-
-    const hasItem = form.items.some((item) => item.item_name.trim() && Number(item.quantity) > 0);
-    if (!hasItem) {
-      return 'Add at least one line item';
-    }
-
-    return '';
+  function toggleVendor(id) {
+    setSelectedVendors(prev =>
+      prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
+    );
   }
 
-  async function submitRfq(status) {
-    const message = validate();
-
-    if (message) {
-      setError(message);
-      return;
-    }
-
+  async function handleSave(status) {
+    setLoading(true);
+    setError('');
     try {
-      const cleanedItems = form.items
-        .filter((item) => item.item_name.trim())
-        .map((item) => ({
-          item_name: item.item_name,
-          quantity: Number(item.quantity),
-          unit: item.unit
-        }));
-
-      const targetStatus = status === 'Published' ? 'Draft' : status;
-      const response = await fetch('/api/rfqs', {
+      const res = await fetch('/api/rfqs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ ...form, items: cleanedItems, status: targetStatus })
+        body: JSON.stringify({ ...form, status, vendor_ids: selectedVendors }),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Could not save RFQ');
-      }
-
-      if (status === 'Published') {
-        const publishResponse = await fetch(`/api/rfqs/${data.id}/publish`, {
-          method: 'POST',
-          credentials: 'include'
-        });
-        const publishData = await publishResponse.json();
-
-        if (!publishResponse.ok) {
-          throw new Error(publishData.message || 'RFQ saved but could not be published');
-        }
-      }
-
+      if (!res.ok) throw new Error('Failed to create RFQ');
       navigate('/rfqs');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }
-
-  function goNext() {
-    if (currentStep === 1 && !form.title.trim()) {
-      setError('RFQ title is required');
-      return;
-    }
-
-    setError('');
-    setCurrentStep(currentStep + 1);
   }
 
   return (
-    <Card className="stat-card shadow-sm">
-      <Card.Body>
-        <div className="d-flex gap-2 mb-4">
-          {[1, 2, 3].map((step) => (
-            <Badge key={step} bg={currentStep === step ? 'primary' : 'secondary'}>
-              Step {step}
-            </Badge>
-          ))}
+    <>
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">Create New RFQ</div>
+          <div className="vb-page-subtitle">Fill in details and assign vendors for quotation</div>
         </div>
+      </div>
 
-        {error && <Alert variant="danger">{error}</Alert>}
+      <Stepper currentStep={step} />
 
-        {currentStep === 1 && (
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Label>RFQ Title</Form.Label>
-              <Form.Control name="title" value={form.title} onChange={updateField} />
-            </Col>
-            <Col md={6}>
-              <Form.Label>Category</Form.Label>
-              <Form.Select name="category" value={form.category} onChange={updateField}>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col md={6}>
-              <Form.Label>Deadline</Form.Label>
-              <Form.Control type="date" name="deadline" value={form.deadline} onChange={updateField} />
-            </Col>
-            <Col md={12}>
-              <Form.Label>Description</Form.Label>
-              <Form.Control as="textarea" rows={4} name="description" value={form.description} onChange={updateField} />
-            </Col>
-          </Row>
-        )}
+      {error && <div className="vb-alert vb-alert-danger">{error}</div>}
 
-        {currentStep === 2 && (
-          <>
-            {form.items.map((item, index) => (
-              <Row className="g-2 align-items-end mb-2" key={index}>
-                <Col md={5}>
-                  <Form.Label>Item name</Form.Label>
-                  <Form.Control value={item.item_name} onChange={(event) => updateItem(index, 'item_name', event.target.value)} />
-                </Col>
-                <Col md={3}>
-                  <Form.Label>Qty</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(event) => updateItem(index, 'quantity', event.target.value)}
-                  />
-                </Col>
-                <Col md={2}>
-                  <Form.Label>Unit</Form.Label>
-                  <Form.Select value={item.unit} onChange={(event) => updateItem(index, 'unit', event.target.value)}>
-                    {units.map((unit) => (
-                      <option key={unit} value={unit}>{unit}</option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col md={2}>
-                  <Button variant="outline-danger" onClick={() => removeItem(index)}>Remove</Button>
-                </Col>
-              </Row>
-            ))}
-            <Button type="button" variant="outline-primary" onClick={addItem}>+ Add Line Item</Button>
-          </>
-        )}
-
-        {currentStep === 3 && (
-          <>
-            <h6>Assign Vendors</h6>
-            {loadingVendors ? (
-              <Spinner animation="border" size="sm" />
-            ) : (
-              <Row className="g-2 mb-3">
-                {vendors.map((vendor) => (
-                  <Col md={6} key={vendor.id}>
-                    <Form.Check
-                      type="checkbox"
-                      label={`${vendor.name} (${vendor.category || 'No category'})`}
-                      checked={form.vendorIds.includes(vendor.id)}
-                      onChange={() => toggleVendor(vendor.id)}
-                    />
-                  </Col>
-                ))}
-              </Row>
-            )}
-
-            <Form.Label>Attachments</Form.Label>
-            <Form.Control type="file" />
-          </>
-        )}
-
-        <div className="d-flex flex-wrap gap-2 mt-4">
-          {currentStep > 1 && (
-            <Button type="button" variant="outline-secondary" onClick={() => setCurrentStep(currentStep - 1)}>
-              Back
-            </Button>
-          )}
-          {currentStep < 3 && (
-            <Button type="button" variant="primary" onClick={goNext}>
-              Next
-            </Button>
-          )}
-          {currentStep === 3 && (
-            <>
-              <Button type="button" variant="primary" onClick={() => submitRfq('Published')}>
-                Save & Send to Vendors
-              </Button>
-              <Button type="button" variant="outline-secondary" onClick={() => submitRfq('Draft')}>
-                Save as Draft
-              </Button>
-            </>
-          )}
-          <Button type="button" variant="outline-secondary" onClick={() => navigate('/rfqs')}>
-            Cancel
-          </Button>
+      {/* Step 1: Details */}
+      {step === 0 && (
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">RFQ Details</div>
+          <div className="vb-form-grid">
+            <div className="vb-form-group">
+              <label className="vb-form-label">RFQ Title <span className="required">*</span></label>
+              <input className="vb-input" placeholder="e.g. IT Equipment Q2 2024"
+                value={form.title} onChange={e => updateField('title', e.target.value)} />
+            </div>
+            <div className="vb-form-group">
+              <label className="vb-form-label">Category <span className="required">*</span></label>
+              <select className="vb-select" value={form.category} onChange={e => updateField('category', e.target.value)}>
+                <option value="">Select category</option>
+                {categories.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="vb-form-grid">
+            <div className="vb-form-group">
+              <label className="vb-form-label">Deadline <span className="required">*</span></label>
+              <input className="vb-input" type="date" value={form.deadline}
+                onChange={e => updateField('deadline', e.target.value)} />
+            </div>
+            <div /> {/* spacer */}
+          </div>
+          <div className="vb-form-group">
+            <label className="vb-form-label">Description</label>
+            <textarea className="vb-textarea" rows={4} placeholder="Describe the procurement requirement in detail..."
+              value={form.description} onChange={e => updateField('description', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button className="vb-btn vb-btn-outline" onClick={() => navigate('/rfqs')}>Cancel</button>
+            <button className="vb-btn vb-btn-primary" onClick={() => setStep(1)}
+              disabled={!form.title || !form.category || !form.deadline}>
+              Next: Line Items <ChevronRight size={15} />
+            </button>
+          </div>
         </div>
-      </Card.Body>
-    </Card>
+      )}
+
+      {/* Step 2: Line Items */}
+      {step === 1 && (
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">Line Items</div>
+          <div className="vb-table-wrap" style={{ marginBottom: 12 }}>
+            <table className="vb-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '40%' }}>Item Name</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Description</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.items.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>
+                      <input className="vb-input" style={{ marginBottom: 0 }} placeholder="Item name"
+                        value={item.name} onChange={e => updateItem(idx, 'name', e.target.value)} />
+                    </td>
+                    <td>
+                      <input className="vb-input" type="number" min="1" style={{ width: 80 }}
+                        value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                    </td>
+                    <td>
+                      <select className="vb-select" style={{ width: 90 }}
+                        value={item.unit} onChange={e => updateItem(idx, 'unit', e.target.value)}>
+                        {units.map(u => <option key={u}>{u}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <input className="vb-input" placeholder="Notes..."
+                        value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} />
+                    </td>
+                    <td>
+                      {form.items.length > 1 && (
+                        <button className="vb-btn vb-btn-ghost vb-btn-xs" onClick={() => removeItem(idx)}
+                          style={{ color: 'var(--danger)' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button className="vb-btn vb-btn-outline vb-btn-sm" onClick={addItem}>
+            <Plus size={14} /> Add Line Item
+          </button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button className="vb-btn vb-btn-outline" onClick={() => setStep(0)}>← Back</button>
+            <button className="vb-btn vb-btn-primary" onClick={() => setStep(2)}
+              disabled={form.items.some(i => !i.name)}>
+              Next: Assign Vendors <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Vendor Assignment */}
+      {step === 2 && (
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">Assign Vendors</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13.5, marginBottom: 16 }}>
+            Select vendors to receive this RFQ and submit quotations.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: 24 }}>
+            {vendors.map(v => {
+              const sel = selectedVendors.includes(v._id);
+              return (
+                <div
+                  key={v._id}
+                  onClick={() => toggleVendor(v._id)}
+                  style={{
+                    padding: '12px 16px',
+                    border: `1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'}`,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    background: sel ? 'var(--primary-light)' : 'var(--surface)',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <div style={{
+                    width: 22, height: 22, borderRadius: 4,
+                    border: `2px solid ${sel ? 'var(--primary)' : 'var(--border)'}`,
+                    background: sel ? 'var(--primary)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', flexShrink: 0, transition: 'all 0.15s'
+                  }}>
+                    {sel && <Check size={12} />}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 13.5 }}>{v.name}</div>
+                    {v.category && <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{v.category}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ background: 'var(--bg)', padding: 12, borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+            {selectedVendors.length} vendor{selectedVendors.length !== 1 ? 's' : ''} selected
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button className="vb-btn vb-btn-outline" onClick={() => setStep(1)}>← Back</button>
+            <button className="vb-btn vb-btn-outline" onClick={() => handleSave('Draft')} disabled={loading}>
+              Save as Draft
+            </button>
+            <button className="vb-btn vb-btn-primary" onClick={() => handleSave('Published')}
+              disabled={loading || selectedVendors.length === 0}>
+              {loading ? <><span className="vb-spin" style={{ width: 15, height: 15 }} /> Publishing...</> : '🚀 Publish & Send'}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

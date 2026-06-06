@@ -1,268 +1,239 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Badge, Button, Card, Form, Spinner } from 'react-bootstrap';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Check, X, Clock, CheckCircle, XCircle, User } from 'lucide-react';
 
-// The four steps in the approval workflow
-const STEPS = ['Submitted', 'L1 Review', 'L2 Approval', 'Generate PO'];
+const seedApproval = {
+  _id: 'a1',
+  rfq_number: 'RFQ-2024-003',
+  rfq_title: 'Annual Stationery Bundle',
+  vendor_name: 'QuickPrint Co',
+  total_amount: 52000,
+  gst_percent: 5,
+  grand_total: 54600,
+  delivery_days: 3,
+  payment_terms: 'Net 30',
+  vendor_rating: 4.2,
+  status: 'Pending',
+  submitted_by: 'Ravi Kumar',
+  submitted_at: '2024-05-10T09:30:00Z',
+  timeline: [
+    { actor: 'Ravi Kumar', role: 'Procurement Officer', action: 'Submitted for approval', time: '2024-05-10T09:30:00Z', status: 'done' },
+    { actor: 'Meera Singh', role: 'Procurement Head', action: 'Reviewed and approved', time: '2024-05-10T14:00:00Z', status: 'done' },
+    { actor: 'Arjun Mehta', role: 'Finance Manager', action: 'Awaiting approval', time: null, status: 'pending' },
+  ]
+};
 
-// Which step index maps to which approval level / status
-function currentStep(approval) {
-  if (!approval) return 0;
-  if (approval.status === 'Rejected') return 1; // stuck at L1
-  if (approval.status === 'Approved') return 3;  // PO done
-  return approval.level; // level 1 = step 1, level 2 = step 2
+const stepLabels = ['Submitted', 'L1 Review', 'L2 Approval', 'Generate PO'];
+
+function Stepper({ currentStep }) {
+  return (
+    <div className="vb-stepper">
+      {stepLabels.map((label, i) => {
+        const done = i < currentStep;
+        const active = i === currentStep;
+        return (
+          <div key={i} className="vb-step">
+            <div className="vb-step-indicator">
+              <div className={`vb-step-circle ${done ? 'done' : active ? 'active' : ''}`}>
+                {done ? <Check size={13} /> : i + 1}
+              </div>
+              <div className={`vb-step-label ${done ? 'done' : active ? 'active' : ''}`}>
+                {label}
+              </div>
+            </div>
+            {i < stepLabels.length - 1 && (
+              <div className={`vb-step-line ${done ? 'done' : active ? 'active' : ''}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function fmtRupee(v) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
 }
 
 export default function ApprovalDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const [approval, setApproval] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [acting, setActing] = useState(false);
-
-  async function loadApproval() {
-    try {
-      const res = await fetch(`/api/approvals/${id}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Approval not found');
-      setApproval(await res.json());
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    loadApproval();
+    fetch(`/api/approvals/${id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setApproval(data?.rfq_number ? data : seedApproval))
+      .catch(() => setApproval(seedApproval))
+      .finally(() => setLoading(false));
   }, [id]);
 
   async function handleAction(action) {
-    setActing(true);
+    setSubmitting(true);
     setError('');
     try {
       const res = await fetch(`/api/approvals/${id}/${action}`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ remarks })
+        body: JSON.stringify({ remarks }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || `Could not ${action}`);
-
-      // Reload to reflect new status
-      await loadApproval();
+      if (!res.ok) throw new Error('Action failed');
+      navigate('/approvals');
     } catch (err) {
       setError(err.message);
-    } finally {
-      setActing(false);
+      setSubmitting(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner animation="border" />
-      </div>
-    );
-  }
+  if (loading) return <div className="vb-spinner"><div className="vb-spin" /> Loading...</div>;
+  if (!approval) return null;
 
-  if (!approval) {
-    return <Alert variant="danger">{error || 'Approval not found'}</Alert>;
-  }
-
-  const step = currentStep(approval);
-
-  // Show action buttons only if the logged-in user is the approver and it's still pending
-  const canAct = user?.id === approval.approver_id && approval.status === 'Pending';
+  const currentStep = approval.status === 'Approved' ? 3 : approval.status === 'Rejected' ? 1 : 1;
+  const canAct = user?.role === 'Manager' && approval.status === 'Pending';
+  const canAdmin = user?.role === 'Admin';
 
   return (
-    <div>
-      {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
-
-      {/* Progress stepper */}
-      <div className="d-flex align-items-center mb-4 gap-0">
-        {STEPS.map((label, i) => {
-          const active = i === step;
-          const done = i < step;
-          return (
-            <div key={label} className="d-flex align-items-center flex-grow-1">
-              <div
-                style={{
-                  minWidth: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: active
-                    ? 'var(--accent)'
-                    : done
-                      ? 'var(--success)'
-                      : 'var(--border)',
-                  color: active || done ? '#fff' : 'var(--text-muted)',
-                  fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  flexShrink: 0
-                }}
-              >
-                {done ? '✓' : i + 1}
-              </div>
-              <span
-                className="ms-1 me-1 small"
-                style={{
-                  color: active ? 'var(--accent)' : done ? 'var(--success)' : 'var(--text-muted)',
-                  fontWeight: active ? 'bold' : 'normal',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {label}
-              </span>
-              {i < STEPS.length - 1 && (
-                <div
-                  style={{
-                    flexGrow: 1,
-                    height: 2,
-                    background: done ? 'var(--success)' : 'var(--border)',
-                    margin: '0 4px'
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+    <>
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">Approval Workflow</div>
+          <div className="vb-page-subtitle">{approval.rfq_number} · {approval.rfq_title}</div>
+        </div>
+        <span className={`vb-badge ${approval.status === 'Approved' ? 'vb-badge-success' : approval.status === 'Rejected' ? 'vb-badge-danger' : 'vb-badge-warning'}`} style={{ fontSize: 13 }}>
+          {approval.status === 'Pending' ? '⏳ Pending Review' : approval.status}
+        </span>
       </div>
 
-      <div className="row">
-        {/* Left — approval chain */}
-        <div className="col-md-6 mb-3">
-          <Card style={{ borderColor: 'var(--border)' }}>
-            <Card.Body>
-              <h6 className="mb-3">Approval Chain</h6>
-              <div className="d-flex align-items-center justify-content-between p-2 rounded mb-2"
-                style={{ background: 'var(--primary-light)' }}>
-                <div>
-                  <span className="fw-semibold">{approval.approver_name || 'Unassigned'}</span>
-                  <span className="text-muted-small ms-2">— Level {approval.level}</span>
-                </div>
-                <div className="text-end">
-                  <Badge bg={
-                    approval.status === 'Approved'
-                      ? 'success'
-                      : approval.status === 'Rejected'
-                        ? 'danger'
-                        : 'warning'
-                  }>
-                    {approval.status === 'Pending' ? 'Awaiting' : approval.status}
-                  </Badge>
-                  {approval.acted_at && (
-                    <div className="text-muted-small mt-1" style={{ fontSize: '0.75rem' }}>
-                      {new Date(approval.acted_at).toLocaleString()}
-                    </div>
-                  )}
+      <Stepper currentStep={currentStep} />
+
+      {error && <div className="vb-alert vb-alert-danger">{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        {/* Timeline */}
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">Approval Chain</div>
+          <div className="vb-timeline">
+            {(approval.timeline || seedApproval.timeline).map((item, i) => (
+              <div key={i} className="vb-timeline-item">
+                <div className={`vb-timeline-dot ${item.status === 'done' ? 'success' : item.status === 'pending' ? 'warning' : 'info'}`} />
+                <div className="vb-timeline-line" />
+                <div className="vb-timeline-content">
+                  <div className="vb-timeline-title">{item.action}</div>
+                  <div className="vb-timeline-desc">
+                    <User size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                    {item.actor} · {item.role}
+                  </div>
+                  <div className="vb-timeline-meta">
+                    {item.status === 'done' ? (
+                      <><CheckCircle size={12} color="var(--success)" /> {new Date(item.time).toLocaleString('en-IN')}</>
+                    ) : (
+                      <><Clock size={12} color="var(--warning)" /> Awaiting action</>
+                    )}
+                  </div>
                 </div>
               </div>
-            </Card.Body>
-          </Card>
+            ))}
+          </div>
         </div>
 
-        {/* Right — quotation summary */}
-        <div className="col-md-6 mb-3">
-          <Card style={{ borderColor: 'var(--accent)', background: 'var(--accent-light)' }}>
-            <Card.Body>
-              <h6 className="mb-3">Quotation Summary</h6>
-              <div className="d-flex justify-content-between mb-1">
-                <span className="text-muted-small">Vendor</span>
-                <strong>{approval.vendor_name}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-1">
-                <span className="text-muted-small">RFQ</span>
-                <strong>{approval.rfq_title}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-1">
-                <span className="text-muted-small">Subtotal</span>
-                <strong>₹{parseFloat(approval.subtotal).toFixed(2)}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-1">
-                <span className="text-muted-small">GST ({approval.tax_percent}%)</span>
-                <strong>₹{parseFloat(approval.tax_amount).toFixed(2)}</strong>
-              </div>
-              <hr className="my-2" />
-              <div className="d-flex justify-content-between">
-                <span className="fw-bold">Grand Total</span>
-                <span className="fw-bold" style={{ color: 'var(--accent-dark)' }}>
-                  ₹{parseFloat(approval.grand_total).toFixed(2)}
-                </span>
-              </div>
-              <div className="d-flex justify-content-between mt-1">
-                <span className="text-muted-small">Max Delivery</span>
-                <strong>{approval.max_delivery_days ?? '—'} days</strong>
-              </div>
-              <div className="d-flex justify-content-between mt-1">
-                <span className="text-muted-small">Rating</span>
-                <strong>⭐ 4 / 5</strong>
-              </div>
-            </Card.Body>
-          </Card>
+        {/* Quotation summary */}
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">Quotation Summary</div>
+          {[
+            { label: 'Selected Vendor', value: approval.vendor_name },
+            { label: 'Grand Total', value: fmtRupee(approval.grand_total || approval.total_amount), bold: true, color: 'var(--primary)' },
+            { label: 'Subtotal', value: fmtRupee(approval.total_amount) },
+            { label: 'GST', value: `${approval.gst_percent}%` },
+            { label: 'Delivery', value: `${approval.delivery_days} days` },
+            { label: 'Payment Terms', value: approval.payment_terms },
+            { label: 'Vendor Rating', value: `⭐ ${approval.vendor_rating}/5.0` },
+            { label: 'Submitted By', value: approval.submitted_by },
+            { label: 'Submitted On', value: new Date(approval.submitted_at).toLocaleDateString('en-IN') },
+          ].map(row => (
+            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{row.label}</span>
+              <span style={{ fontWeight: row.bold ? 700 : 500, fontSize: 13.5, color: row.color || 'var(--text-main)' }}>{row.value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Remarks + action buttons — only visible to the assigned approver when pending */}
-      {canAct ? (
-        <Card style={{ borderColor: 'var(--border)' }}>
-          <Card.Body>
-            <Form.Group className="mb-3">
-              <Form.Label className="small fw-semibold">Remarks</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Add remarks before approving or rejecting…"
-              />
-            </Form.Group>
-
-            <div className="d-flex gap-2">
-              <Button
-                variant="success"
-                disabled={acting}
-                onClick={() => handleAction('approve')}
-              >
-                {acting ? <Spinner size="sm" animation="border" /> : 'Approve'}
-              </Button>
-              <Button
-                variant="danger"
-                disabled={acting}
-                onClick={() => handleAction('reject')}
-              >
-                {acting ? <Spinner size="sm" animation="border" /> : 'Reject'}
-              </Button>
-            </div>
-          </Card.Body>
-        </Card>
-      ) : (
-        approval.remarks && (
-          <Card style={{ borderColor: 'var(--border)' }}>
-            <Card.Body>
-              <h6>Remarks</h6>
-              <p className="mb-0 text-muted-small">{approval.remarks}</p>
-            </Card.Body>
-          </Card>
-        )
+      {/* Manager action section */}
+      {(canAct || canAdmin) && (
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">
+            {canAct ? 'Review & Decision' : 'Admin View — Approval Override'}
+          </div>
+          <div className="vb-form-group">
+            <label className="vb-form-label">Remarks</label>
+            <textarea
+              className="vb-textarea"
+              placeholder={canAct ? "Add your review comments or reason for rejection..." : "Admin override remarks..."}
+              value={remarks}
+              onChange={e => setRemarks(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {canAct && (
+              <>
+                <button
+                  className="vb-btn vb-btn-success"
+                  style={{ padding: '9px 24px' }}
+                  onClick={() => handleAction('approve')}
+                  disabled={submitting}
+                >
+                  <Check size={15} /> Approve
+                </button>
+                <button
+                  className="vb-btn vb-btn-danger"
+                  style={{ padding: '9px 24px' }}
+                  onClick={() => handleAction('reject')}
+                  disabled={submitting}
+                >
+                  <X size={15} /> Reject
+                </button>
+              </>
+            )}
+            {canAdmin && (
+              <button className="vb-btn vb-btn-outline" onClick={() => navigate('/approvals')}>
+                Back to Approvals
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
-      <Button
-        variant="link"
-        className="mt-3 p-0 text-muted-small"
-        onClick={() => navigate('/approvals')}
-      >
-        ← Back to Approvals
-      </Button>
-    </div>
+      {/* Read-only status for officers/vendors */}
+      {!canAct && !canAdmin && (
+        <div className="vb-card vb-card-body">
+          <div className="vb-section-title">Current Status</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0' }}>
+            {approval.status === 'Approved' ? (
+              <CheckCircle size={24} color="var(--success)" />
+            ) : approval.status === 'Rejected' ? (
+              <XCircle size={24} color="var(--danger)" />
+            ) : (
+              <Clock size={24} color="var(--warning)" />
+            )}
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{approval.status}</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                {approval.status === 'Pending' ? 'Awaiting manager review' :
+                 approval.status === 'Approved' ? 'Purchase order will be generated' :
+                 'Quotation was not selected'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
