@@ -34,12 +34,12 @@ export const sidebarItemsByRole = {
     { path: '/activity',          label: 'Activity',        icon: '📝' }
   ],
   Vendor: [
-    { path: '/vendor/dashboard', label: 'Dashboard',       icon: '📊' },
-    { path: '/rfqs',             label: 'Assigned RFQs',   icon: '📋' },
-    { path: '/quotations',       label: 'My Quotations',   icon: '💬' },
-    { path: '/purchase-orders',  label: 'Purchase Orders', icon: '📦' },
-    { path: '/invoices',         label: 'Invoice Status',  icon: '🧾' },
-    { path: '/activity',         label: 'Activity',        icon: '📝' }
+    { path: '/vendor/dashboard', label: 'Dashboard',          icon: '📊' },
+    { path: '/rfqs',             label: 'Assigned RFQs',      icon: '📋' },
+    { path: '/quotations',       label: 'My Quotations',      icon: '💬' },
+    { path: '/purchase-orders',  label: 'Purchase Orders',    icon: '📦' },
+    { path: '/invoices',         label: 'Invoice Status',     icon: '🧾' },
+    { path: '/activity',         label: 'Activity',           icon: '📝' }
   ],
   Manager: [
     { path: '/manager/dashboard',        label: 'Dashboard',          icon: '📊' },
