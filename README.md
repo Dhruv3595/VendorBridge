@@ -33,10 +33,3 @@ Demo login credentials
 - officer@vendorbridge.com / password123
 - vendor@vendorbridge.com / password123
 
-Suggested commit messages
-
-- init project structure
-- add postgres schema
-- add auth backend
-- add login signup pages
-- add dashboard
