@@ -18,6 +18,7 @@ import PurchaseOrders from './pages/PurchaseOrders.jsx';
 import PurchaseOrderDetail from './pages/PurchaseOrderDetail.jsx';
 import Invoices from './pages/Invoices.jsx';
 import InvoiceDetail from './pages/InvoiceDetail.jsx';
+import Activity from './pages/Activity.jsx';
 
 function ProtectedRoute({ title, children }) {
   const { user, loading } = useAuth();
@@ -165,6 +166,14 @@ export default function App() {
           )}
         />
         <Route
+          path="/activity"
+          element={(
+            <ProtectedRoute title="Activity">
+              <Activity />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/dashboard"
           element={(
             <ProtectedRoute title="Dashboard">
@@ -172,7 +181,7 @@ export default function App() {
             </ProtectedRoute>
           )}
         />
-        {['quotations', 'reports', 'activity'].map((path) => (
+        {['quotations', 'reports'].map((path) => (
           <Route
             key={path}
             path={`/${path}`}
