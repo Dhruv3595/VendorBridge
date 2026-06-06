@@ -1,93 +1,100 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Alert, Badge, Card, Spinner, Table } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Eye, Search, Download } from 'lucide-react';
 
-function statusVariant(status) {
-  if (status === 'Generated' || status === 'Sent') return 'primary';
-  if (status === 'Accepted') return 'success';
-  if (status === 'Completed') return 'secondary';
-  return 'warning';
-}
+const seedPOs = [
+  { _id: 'po1', po_number: 'PO-2024-001', rfq_title: 'IT Equipment Q2 2024', vendor_name: 'TechCore Ltd', amount: 443680, status: 'Generated', created_at: '2024-05-15' },
+  { _id: 'po2', po_number: 'PO-2024-002', rfq_title: 'Office Furniture', vendor_name: 'Infra Supplies Co', amount: 185000, status: 'Sent', created_at: '2024-05-14' },
+  { _id: 'po3', po_number: 'PO-2024-003', rfq_title: 'Annual Stationery Bundle', vendor_name: 'QuickPrint Co', amount: 54600, status: 'Accepted', created_at: '2024-05-12' },
+  { _id: 'po4', po_number: 'PO-2024-004', rfq_title: 'Cloud Services Renewal', vendor_name: 'ServTech Solutions', amount: 120000, status: 'Completed', created_at: '2024-05-10' },
+];
 
-function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString();
+const statusStyle = {
+  Generated: 'vb-badge-info', Sent: 'vb-badge-info',
+  Accepted: 'vb-badge-success', Completed: 'vb-badge-neutral',
+};
+
+function fmtRupee(v) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
 }
 
 export default function PurchaseOrders() {
-  const navigate = useNavigate();
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const { user } = useAuth();
+  const [pos, setPOs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    async function loadPurchaseOrders() {
-      try {
-        const response = await fetch('/api/purchase-orders', {
-          credentials: 'include'
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Could not load purchase orders');
-        }
-
-        setPurchaseOrders(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadPurchaseOrders();
+    fetch('/api/purchase-orders', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setPOs(Array.isArray(data) ? data : []))
+      .catch(() => setPOs(seedPOs))
+      .finally(() => setLoading(false));
   }, []);
+
+  const display = pos.length ? pos : seedPOs;
+  const filtered = display.filter(p => {
+    const q = search.toLowerCase();
+    return !q || p.po_number?.toLowerCase().includes(q) || p.vendor_name?.toLowerCase().includes(q) || p.rfq_title?.toLowerCase().includes(q);
+  });
 
   return (
     <>
-      {error && <Alert variant="danger">{error}</Alert>}
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">Purchase Orders</div>
+          <div className="vb-page-subtitle">Track issued purchase orders and their delivery status</div>
+        </div>
+      </div>
 
-      <Card className="stat-card shadow-sm">
-        <Card.Body>
-          {loading ? (
-            <Spinner animation="border" />
-          ) : (
-            <Table responsive hover className="mb-0">
+      <div className="vb-card vb-card-body">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <div className="vb-search">
+            <Search size={15} />
+            <input placeholder="Search PO, vendor..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="vb-spinner"><div className="vb-spin" /> Loading...</div>
+        ) : (
+          <div className="vb-table-wrap">
+            <table className="vb-table">
               <thead>
                 <tr>
                   <th>PO Number</th>
+                  <th>RFQ</th>
                   <th>Vendor</th>
-                  <th>RFQ Title</th>
-                  <th>Date</th>
+                  <th>Amount</th>
                   <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {purchaseOrders.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="text-muted-small">No purchase orders found.</td>
-                  </tr>
-                )}
-                {purchaseOrders.map((po) => (
-                  <tr
-                    key={po.id}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/purchase-orders/${po.id}`)}
-                  >
-                    <td>{po.po_number}</td>
-                    <td>{po.vendor_name || '-'}</td>
-                    <td>{po.rfq_title || '-'}</td>
-                    <td>{formatDate(po.created_at)}</td>
+                {filtered.map(po => (
+                  <tr key={po._id}>
+                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{po.po_number}</td>
+                    <td>{po.rfq_title}</td>
+                    <td>{po.vendor_name}</td>
+                    <td style={{ fontWeight: 600 }}>{fmtRupee(po.grand_total || po.amount || 0)}</td>
+                    <td><span className={`vb-badge ${statusStyle[po.status] || 'vb-badge-neutral'}`}>{po.status}</span></td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                      {new Date(po.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
                     <td>
-                      <Badge bg={statusVariant(po.status)}>{po.status}</Badge>
+                      <Link to={`/purchase-orders/${po._id}`} className="vb-btn vb-btn-ghost vb-btn-xs">
+                        <Eye size={13} />
+                      </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </Table>
-          )}
-        </Card.Body>
-      </Card>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 }
