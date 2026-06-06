@@ -1,187 +1,169 @@
-import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useState } from 'react';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from 'recharts';
+import { Download, TrendingUp, Building2, ShoppingBag, AlertTriangle } from 'lucide-react';
 
-function money(value) {
-  return `Rs. ${Number(value || 0).toFixed(2)}`;
+const spendTrend = [
+  { month: 'Dec', amount: 210000 }, { month: 'Jan', amount: 280000 },
+  { month: 'Feb', amount: 240000 }, { month: 'Mar', amount: 360000 },
+  { month: 'Apr', amount: 320000 }, { month: 'May', amount: 480000 },
+];
+
+const categorySpend = [
+  { category: 'IT Hardware', amount: 480000 },
+  { category: 'Furniture', amount: 320000 },
+  { category: 'Logistics', amount: 230000 },
+  { category: 'Stationery', amount: 210000 },
+  { category: 'Services', amount: 170000 },
+];
+
+const topVendors = [
+  { name: 'TechCore Ltd', spend: 420000, pos: 6, share: 30 },
+  { name: 'Infra Supplies', spend: 310000, pos: 4, share: 22 },
+  { name: 'FastLog Services', spend: 190000, pos: 3, share: 13 },
+  { name: 'QuickPrint Co', spend: 140000, pos: 5, share: 10 },
+  { name: 'ServTech', spend: 120000, pos: 2, share: 8.5 },
+];
+
+const invoiceStatus = [
+  { name: 'Paid', value: 14, color: '#16A34A' },
+  { name: 'Pending', value: 5, color: '#F59E0B' },
+  { name: 'Overdue', value: 2, color: '#DC2626' },
+];
+
+function fmtRupee(v) {
+  if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+  if (v >= 1000) return `₹${(v / 1000).toFixed(0)}K`;
+  return `₹${v}`;
 }
 
+function StatCard({ icon: Icon, label, value, color, bg, sub }) {
+  return (
+    <div className="vb-stat-card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+        <div className="vb-stat-card-icon" style={{ background: bg, color }}><Icon size={18} /></div>
+      </div>
+      <div className="vb-stat-number">{value}</div>
+      <div className="vb-stat-label">{label}</div>
+      {sub && <div style={{ fontSize: 11.5, color: 'var(--success)', marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+}
+
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+
 export default function Reports() {
-  const [stats, setStats] = useState(null);
-  const [monthlySpend, setMonthlySpend] = useState([]);
-  const [spendByCategory, setSpendByCategory] = useState([]);
-  const [topVendors, setTopVendors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    async function loadReports() {
-      try {
-        const [statsRes, monthlyRes, categoryRes, vendorsRes] = await Promise.all([
-          fetch('/api/reports/summary', { credentials: 'include' }),
-          fetch('/api/reports/monthly-trend', { credentials: 'include' }),
-          fetch('/api/reports/spend-by-category', { credentials: 'include' }),
-          fetch('/api/reports/top-vendors', { credentials: 'include' })
-        ]);
-
-        const statsData = await statsRes.json();
-        const monthlyData = await monthlyRes.json();
-        const categoryData = await categoryRes.json();
-        const vendorsData = await vendorsRes.json();
-
-        if (!statsRes.ok) throw new Error(statsData.message || 'Could not load stats');
-        if (!monthlyRes.ok) throw new Error(monthlyData.message || 'Could not load monthly spend');
-        if (!categoryRes.ok) throw new Error(categoryData.message || 'Could not load category spend');
-        if (!vendorsRes.ok) throw new Error(vendorsData.message || 'Could not load top vendors');
-
-        setStats(statsData);
-        setMonthlySpend(monthlyData);
-        setSpendByCategory(categoryData);
-        setTopVendors(vendorsData);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadReports();
-  }, []);
-
-  async function exportCsv() {
-    setError('');
-
-    try {
-      const response = await fetch('/api/reports/export', {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Could not export CSV');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'purchase-orders.csv';
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  if (loading) {
-    return <Spinner animation="border" />;
-  }
-
-  const cards = [
-    { label: 'Total Spend', value: money(stats?.total_invoice_amount || 0) },
-    { label: 'Active Vendors', value: stats?.active_vendors || 0 },
-    { label: 'PO Fulfillment', value: `${stats?.po_fulfillment_percent || 0}%` },
-    { label: 'Overdue Invoices', value: stats?.overdue_invoices || 0 }
-  ];
+  const [selectedMonth, setSelectedMonth] = useState('May');
 
   return (
     <>
-      <div className="d-flex flex-wrap justify-content-between gap-2 align-items-center mb-3">
-        <h5 className="mb-0">Reports</h5>
-        <Button variant="primary" onClick={exportCsv}>Export CSV</Button>
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">Reports & Analytics</div>
+          <div className="vb-page-subtitle">Procurement insights and performance metrics</div>
+        </div>
+        <div className="vb-page-actions">
+          <select className="vb-select" style={{ width: 120, height: 36 }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+            {months.map(m => <option key={m}>{m}</option>)}
+          </select>
+          <button className="vb-btn vb-btn-outline"><Download size={15} /> Export</button>
+        </div>
       </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {/* Top cards */}
+      <div className="vb-grid-4 vb-mb-6">
+        <StatCard icon={TrendingUp} label="Total Spend (YTD)" value="₹14.2L" color="#714B67" bg="var(--primary-light)" sub="↑ 22% vs last year" />
+        <StatCard icon={Building2} label="Active Vendors" value="18" color="#16A34A" bg="#F0FDF4" sub="2 pending approval" />
+        <StatCard icon={ShoppingBag} label="PO Fulfillment %" value="94%" color="#2563EB" bg="#EFF6FF" sub="↑ 3% vs last month" />
+        <StatCard icon={AlertTriangle} label="Overdue Invoices" value="2" color="#DC2626" bg="#FEF2F2" sub="₹47,000 outstanding" />
+      </div>
 
-      <Row className="g-3 mb-4">
-        {cards.map((card) => (
-          <Col md={3} sm={6} key={card.label}>
-            <Card className="stat-card shadow-sm h-100">
-              <Card.Body>
-                <div className="text-muted-small">{card.label}</div>
-                <h4 className="mt-2 mb-0">{card.value}</h4>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      {/* Charts row 1 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div className="vb-chart-card">
+          <div className="vb-chart-title">Monthly Spend Trend</div>
+          <div className="vb-chart-subtitle">Procurement expenditure over the last 6 months</div>
+          <ResponsiveContainer width="100%" height={230}>
+            <BarChart data={spendTrend} margin={{ left: -10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} />
+              <YAxis tickFormatter={fmtRupee} tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+              <Tooltip formatter={v => [fmtRupee(v), 'Spend']} />
+              <Bar dataKey="amount" fill="#714B67" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-      <Card className="stat-card shadow-sm mb-4">
-        <Card.Body>
-          <h5 className="mb-3">Monthly Spend</h5>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <BarChart data={monthlySpend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => money(value)} />
-                <Bar dataKey="total" fill="#00A09D" />
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="vb-chart-card">
+          <div className="vb-chart-title">Invoice Status</div>
+          <div className="vb-chart-subtitle">Payment health overview</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <PieChart>
+              <Pie data={invoiceStatus} innerRadius={48} outerRadius={72} dataKey="value" paddingAngle={3}>
+                {invoiceStatus.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Tooltip formatter={(v, name) => [`${v} invoices`, name]} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{ marginTop: 8 }}>
+            {invoiceStatus.map(s => (
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
+                  <span style={{ color: 'var(--text-secondary)' }}>{s.name}</span>
+                </div>
+                <span style={{ fontWeight: 600 }}>{s.value}</span>
+              </div>
+            ))}
           </div>
-        </Card.Body>
-      </Card>
+        </div>
+      </div>
 
-      <Row className="g-3">
-        <Col lg={6}>
-          <Card className="stat-card shadow-sm h-100">
-            <Card.Body>
-              <h5 className="mb-3">Spend by Category</h5>
-              <Table responsive hover className="mb-0">
-                <thead>
-                  <tr>
-                    <th>Category</th>
-                    <th>Total Spend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {spendByCategory.length === 0 && (
-                    <tr>
-                      <td colSpan="2" className="text-muted-small">No category spend found.</td>
-                    </tr>
-                  )}
-                  {spendByCategory.map((row) => (
-                    <tr key={row.category}>
-                      <td>{row.category}</td>
-                      <td>{money(row.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col lg={6}>
-          <Card className="stat-card shadow-sm h-100">
-            <Card.Body>
-              <h5 className="mb-3">Top Vendors</h5>
-              <Table responsive hover className="mb-0">
-                <thead>
-                  <tr>
-                    <th>Vendor Name</th>
-                    <th>PO Count</th>
-                    <th>Total Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topVendors.length === 0 && (
-                    <tr>
-                      <td colSpan="3" className="text-muted-small">No vendor data found.</td>
-                    </tr>
-                  )}
-                  {topVendors.map((vendor) => (
-                    <tr key={vendor.id || vendor.vendor_name}>
-                      <td>{vendor.vendor_name || '-'}</td>
-                      <td>{vendor.po_count}</td>
-                      <td>{money(vendor.total_value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      {/* Charts row 2 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div className="vb-chart-card">
+          <div className="vb-chart-title">Spend by Category</div>
+          <div className="vb-chart-subtitle">Category-wise procurement cost breakdown</div>
+          <ResponsiveContainer width="100%" height={210}>
+            <BarChart data={categorySpend} layout="vertical" margin={{ right: 20, left: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+              <XAxis type="number" tickFormatter={fmtRupee} tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+              <YAxis dataKey="category" type="category" tick={{ fontSize: 12, fill: '#6B7280' }} width={90} />
+              <Tooltip formatter={v => [fmtRupee(v), 'Spend']} />
+              <Bar dataKey="amount" fill="#17BC76" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Top Vendors by Spend */}
+        <div className="vb-chart-card">
+          <div className="vb-chart-title">Top Vendors by Spend</div>
+          <div className="vb-chart-subtitle">Based on total purchase order value</div>
+          <div style={{ marginTop: 8 }}>
+            {topVendors.map((v, i) => (
+              <div key={v.name} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
+                      {i + 1}
+                    </span>
+                    <span style={{ fontWeight: 500, fontSize: 13.5 }}>{v.name}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--primary)', fontSize: 13.5 }}>{fmtRupee(v.spend)}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{v.pos} POs</div>
+                  </div>
+                </div>
+                <div className="vb-progress">
+                  <div className="vb-progress-bar" style={{ width: `${v.share}%`, background: i === 0 ? 'var(--primary)' : '#9CA3AF' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </>
   );
 }

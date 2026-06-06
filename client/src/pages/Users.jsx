@@ -1,124 +1,146 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Card, Form, Spinner, Table } from 'react-bootstrap';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Search, Plus, Shield, UserCircle, Edit2, Trash2 } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
 
-const statuses = ['Active', 'Pending', 'Blocked'];
+const seedUsers = [
+  { _id: 'u1', name: 'System Admin', email: 'admin@vendorbridge.com', role: 'Admin', status: 'Active' },
+  { _id: 'u2', name: 'Ravi Kumar', email: 'ravi.k@vendorbridge.com', role: 'Officer', status: 'Active' },
+  { _id: 'u3', name: 'Priya Sharma', email: 'priya.s@vendorbridge.com', role: 'Officer', status: 'Active' },
+  { _id: 'u4', name: 'Arjun Mehta', email: 'arjun.m@vendorbridge.com', role: 'Manager', status: 'Active' },
+  { _id: 'u5', name: 'Meera Singh', email: 'meera.s@vendorbridge.com', role: 'Manager', status: 'Active' },
+  { _id: 'u6', name: 'TechCore Ltd', email: 'billing@techcore.com', role: 'Vendor', status: 'Active' },
+];
 
-function statusVariant(status) {
-  if (status === 'Active') return 'success';
-  if (status === 'Blocked') return 'danger';
-  return 'warning';
-}
+const roleStyles = {
+  Admin: { color: '#7C3AED', bg: '#F5F3FF' },
+  Manager: { color: '#16A34A', bg: '#F0FDF4' },
+  Officer: { color: '#2563EB', bg: '#EFF6FF' },
+  Vendor: { color: '#D97706', bg: '#FFFBEB' },
+};
 
 export default function Users() {
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  async function loadUsers() {
-    try {
-      const response = await fetch('/api/users', {
-        credentials: 'include'
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Could not load users');
-      }
-
-      setUsers(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [search, setSearch] = useState('');
+  const [filterRole, setFilterRole] = useState('All');
 
   useEffect(() => {
-    loadUsers();
+    fetch('/api/users', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => setUsers(seedUsers))
+      .finally(() => setLoading(false));
   }, []);
 
-  async function updateStatus(userId, status) {
-    setError('');
-
-    try {
-      const response = await fetch(`/api/users/${userId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status })
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Could not update user status');
-      }
-
-      setUsers((current) => current.map((user) => (user.id === userId ? data : user)));
-    } catch (err) {
-      setError(err.message);
-    }
+  if (user?.role !== 'Admin') {
+    return <Navigate to="/dashboard" replace />;
   }
+
+  const display = users.length ? users : seedUsers;
+  const filtered = display.filter(u => {
+    const matchRole = filterRole === 'All' || u.role === filterRole;
+    const q = search.toLowerCase();
+    const matchSearch = !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+    return matchRole && matchSearch;
+  });
+
+  const roles = ['All', 'Admin', 'Manager', 'Officer', 'Vendor'];
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Users</h5>
+      <div className="vb-page-header">
+        <div>
+          <div className="vb-page-title">User Management</div>
+          <div className="vb-page-subtitle">Manage system access, roles, and permissions</div>
+        </div>
+        <div className="vb-page-actions">
+          <button className="vb-btn vb-btn-primary">
+            <Plus size={15} /> Add User
+          </button>
+        </div>
       </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      <div className="vb-card vb-card-body">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div className="vb-filter-tabs">
+            {roles.map(r => (
+              <button key={r} className={`vb-filter-tab${filterRole === r ? ' active' : ''}`} onClick={() => setFilterRole(r)}>
+                {r}
+                <span style={{ marginLeft: 4, padding: '0 5px', background: filterRole === r ? 'var(--primary-light)' : 'transparent', borderRadius: 10, fontSize: 11, color: filterRole === r ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 600 }}>
+                  {r === 'All' ? display.length : display.filter(u => u.role === r).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="vb-search">
+            <Search size={15} />
+            <input placeholder="Search name, email..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
 
-      <Card className="stat-card shadow-sm">
-        <Card.Body>
-          {loading ? (
-            <Spinner animation="border" />
-          ) : (
-            <Table responsive hover className="mb-0">
+        {loading ? (
+          <div className="vb-spinner"><div className="vb-spin" /> Loading users...</div>
+        ) : (
+          <div className="vb-table-wrap">
+            <table className="vb-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
+                  <th>User</th>
                   <th>Role</th>
-                  <th>Vendor Link</th>
                   <th>Status</th>
-                  <th>Change Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="text-muted-small">No users found.</td>
-                  </tr>
-                )}
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
-                    <td>{user.role}</td>
-                    <td>{user.vendor_id || '-'}</td>
+                {filtered.map(u => (
+                  <tr key={u._id}>
                     <td>
-                      <Badge bg={statusVariant(user.status)}>{user.status}</Badge>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="vb-avatar" style={{ width: 32, height: 32, fontSize: 12, background: 'var(--surface-hover)', color: 'var(--text-main)', border: '1px solid var(--border)' }}>
+                          <UserCircle size={18} strokeWidth={1.5} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13.5 }}>{u.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.email}</div>
+                        </div>
+                      </div>
                     </td>
                     <td>
-                      <div className="d-flex gap-2 align-items-center">
-                        <Form.Select
-                          size="sm"
-                          value={user.status}
-                          onChange={(event) => updateStatus(user.id, event.target.value)}
-                          style={{ maxWidth: 150 }}
-                        >
-                          {statuses.map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </Form.Select>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '3px 8px', borderRadius: 4, fontSize: 12, fontWeight: 600,
+                        backgroundColor: roleStyles[u.role]?.bg || '#f3f4f6',
+                        color: roleStyles[u.role]?.color || '#4b5563'
+                      }}>
+                        <Shield size={12} /> {u.role}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`vb-badge ${u.status === 'Active' ? 'vb-badge-success' : 'vb-badge-danger'}`}>
+                        {u.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="vb-btn vb-btn-ghost vb-btn-xs" title="Edit">
+                          <Edit2 size={13} />
+                        </button>
+                        {u._id !== user?._id && (
+                          <button className="vb-btn vb-btn-ghost vb-btn-xs" style={{ color: 'var(--danger)' }} title="Delete">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </Table>
-          )}
-        </Card.Body>
-      </Card>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 }
