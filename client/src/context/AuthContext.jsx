@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
   }
 
   async function signup(formData) {
-    const response = await fetch('/api/auth/signup', {
+    const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
